@@ -1,10 +1,10 @@
 require 'csv'
 class Upload
   def self.csv(csv, user_id)
-    @price_book = {}
     @user = User.find(user_id)
-    CSV.read('2018price_book.csv', headers: true).each do |row|
-      @price_book[row['Item#'].delete("*")] = get_category(row['Page'])
+    @categories = {}
+    CSV.read('pricebook.csv', headers: true).each do |row|
+      @categories[row["Model"]] = find_category(row["Catalog_Page"])
     end
 
     CSV.read(csv, headers: true).each do |row|
@@ -18,7 +18,7 @@ class Upload
         unless @group
           @group = Group.find_by_number(group_number(row["Model"]))
           unless @group
-            @group = Group.create(number: group_number(row["Model"]), category: find_category(row["Model"], @price_book))
+            @group = Group.create(number: group_number(row["Model"]), category: @categories[row["Model"]])
           end
         end
         @category = @group.category
@@ -39,6 +39,7 @@ class Upload
       @order = Order.create(customer_id: @customer.id, invoice_id: row["Invoice"], invoice_date: convert_date(row["Invoice Date"]), quantity: row["Order Qty"], promo: promo(row["Price Name"]), user_id: user_id, product_id: @product.id, price: row["  Order Price"])
       @order.update(total: (@order.price * @order.quantity))
     end
+    Customer.write_recommendations
   end
 
   def self.get_category(page)
@@ -77,23 +78,23 @@ class Upload
     end
   end
 
-  def self.find_category(number, price_book, try = 0)
-    category = price_book[number]
-    if !category && try <= 4
-      try += 1
-      if try == 1
-        find_category((number.split('-').first + "-" + number.split('-')[1].gsub("3", "1")), price_book, try)
-      elsif try == 2
-        find_category((number.split('-').first + "-" + number.split('-')[1].gsub("2", "1")), price_book, try)
-      elsif try == 3
-        find_category((number.split('-').first + "-" + number.split('-')[1].gsub("1", "1CK")), price_book, try)
-      else
-        find_category(number.split('-').first + "-3", price_book, try)
-      end
-    elsif try > 4
-      category = ''
-    else
-      return category
+  def self.find_category(page)
+    unless page
+      return nil
+    end
+    book = page.split("-").first
+    if book.include?("B")
+      return "bedroom"
+    elsif book.include?("S")
+      return "seating"
+    elsif book.include?("D")
+      return "dining"
+    elsif book.include?("T")
+      return "occasional"
+    elsif book.include?("Y")
+      return "youth"
+    elsif book.include?("H")
+      return "home"
     end
   end
 
