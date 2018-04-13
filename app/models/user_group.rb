@@ -30,7 +30,7 @@ class UserGroup < ApplicationRecord
       (start_year..end_year).each do |year|
         12.times do |t|
           month = t + 1
-          unless ug.sales_number.where(month: month, year: year).any?
+          unless ug.sales_numbers.where(month: month, year: year).any?
             sales = user_products.joins(:sales_numbers).where(sales_numbers: {month: month, year: year}).sum(:sales)
             ug.sales_numbers.create(month: month, year: year, sales: sales)
           end

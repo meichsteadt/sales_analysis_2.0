@@ -30,7 +30,7 @@ class UserProduct < ApplicationRecord
       (start_year..end_year).each do |year|
         12.times do |t|
           month = t + 1
-          unless up.sales_number.where(month: month, year: year).any?
+          unless up.sales_numbers.where(month: month, year: year).any?
             sales = orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:total)
             up.sales_numbers.create(month: month, year: year, sales: sales)
           end

@@ -46,9 +46,9 @@ class Upload
   end
 
   def self.update_sales(user)
-    # Product.update_sales
-    # Customer.update_sales
-    # Group.update_sales
+    Product.update_sales
+    Customer.update_sales
+    Group.update_sales
     user.update_sales
     user.update_sales_numbers
     UserProduct.update_sales
