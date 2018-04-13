@@ -1,17 +1,27 @@
 class CustomersController < ApplicationController
   def index
-    @customers = []
+    params[:page_number] ? @page_number = params[:page_number].to_i : @page_number = 1
+    params[:sort_by] ? @sort_by = params[:sort_by] : @sort_by = "sales"
     if params[:product_id]
       @product = Product.find(params[:product_id])
-      @customers = @product.best_customers
+      @customers = @product.customer_products.where(customer_id: params[:customer_id]).order(:sales_year => :desc)
     else
-      @current_user.customers.map {|e| @customers.push({customer: e, sales_ytd: e.sales_ytd, growth: e.growth, sales_last_year: e.sales_ytd(Date.today.last_year)})}
+      if(@sort_by === "sales")
+        @customers = current_user.customers.order(:sales_year => :desc)
+      elsif @sort_by === "growth"
+        @customers = current_user.customers.order(:growth => :desc)
+      elsif @sort_by === "name"
+        @customers = current_user.customers.order(:name)
+      end
     end
-    render json: @customers.sort_by {|e| e[:sales_ytd]}.reverse
+    render json: paginate(@customers, @page_number)
   end
 
   def show
     @customer = Customer.find(params[:id])
-    render json: {customer: @customer, sales_ytd: @customer.sales_ytd, sales_last_year: @customer.sales_ytd(Date.today.last_year), growth: @customer.growth, recommendations: @customer.recommendations, promo_percentage: @customer.promo_percentage}
+    render json: {customer: @customer,
+                  recommendations: [],
+                  promo_percentage: @customer.promo_percentage
+                }
   end
 end

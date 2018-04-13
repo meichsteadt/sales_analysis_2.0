@@ -1,15 +1,15 @@
 class BestSellersController < ApplicationController
   def index
-    params[:limit] ? @limit = params[:limit] - 1 : @limit = 14
+    params[:page_number] ? @page_number = params[:page_number].to_i : @page_number = 1
     if params[:customer_id]
       begin
-        @best_sellers = Customer.find(params[:customer_id]).best_sellers(@limit)
+        @best_sellers = Customer.find(params[:customer_id]).best_sellers
       rescue
         @best_sellers = {"message": "customer not found"}
       end
     else
-      @best_sellers = current_user.best_sellers(current_user.id, @limit)
+      @best_sellers = current_user.best_sellers(current_user.id)
     end
-    render json: @best_sellers
+    render json: paginate(@best_sellers, @page_number)
   end
 end

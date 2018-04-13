@@ -10,7 +10,8 @@ class Upload
     CSV.read(csv, headers: true).each do |row|
       @customer = @user.customers.find_by_name_id(row["Customer ID"])
       unless @customer
-        @customer = Customer.create(name: row["Customer Name"].titlecase, user_id: user_id, name_id: row["Customer ID"], state: row["State"])
+        @name = row["Customer Name"].titlecase
+        @customer = Customer.create(name: @name, user_id: user_id, name_id: row["Customer ID"], state: row["State"])
       end
       @product = @user.products.find_by_number(row["Model"])
       unless @product
@@ -36,10 +37,28 @@ class Upload
       unless @user.groups.include?(@group)
         @user.groups << @group
       end
-      @order = Order.create(customer_id: @customer.id, invoice_id: row["Invoice"], invoice_date: convert_date(row["Invoice Date"]), quantity: row["Order Qty"], promo: promo(row["Price Name"]), user_id: user_id, product_id: @product.id, price: row["  Order Price"])
-      @order.update(total: (@order.price * @order.quantity))
+      unless Order.where(invoice_id: row["Invoice"], product_id: @product.id).any?
+        @order = Order.create(customer_id: @customer.id, invoice_id: row["Invoice"], invoice_date: convert_date(row["Invoice Date"]), quantity: row["Order Qty"], promo: promo(row["Price Name"]), user_id: user_id, product_id: @product.id, total: row["Order Price"])
+        @order.update(price: (@order.price / @order.quantity))
+      end
     end
-    Customer.write_recommendations
+    update_sales(@user)
+  end
+
+  def self.update_sales(user)
+    # Product.update_sales
+    # Customer.update_sales
+    # Group.update_sales
+    user.update_sales
+    user.update_sales_numbers
+    UserProduct.update_sales
+    UserGroup.update_sales
+    UserProduct.write_sales_numbers
+    UserGroup.write_sales_numbers
+    CustomerProduct.update_sales
+    CustomerGroup.update_sales
+    SalesNumber.write_sales_numbers
+    # Customer.write_recommendations
   end
 
   def self.get_category(page)

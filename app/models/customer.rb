@@ -1,25 +1,29 @@
 class Customer < ApplicationRecord
   belongs_to :user
   has_many :orders
-  has_and_belongs_to_many :products
-  has_and_belongs_to_many :groups
+  has_many :customer_products
+  has_many :products, through: :customer_products
+  has_many :customer_groups
+  has_many :groups, through: :customer_groups
+  has_many :sales_numbers, :as => :numberable
 
-  def sales_year(year = Date.today.year)
-    self.orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year), Date.new(year).end_of_year).map {|e| (e.price * e.quantity)}.sum
-  end
-
-  def sales_month(year = Date.today.year, month = Date.today.month)
-    self.orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).map {|e| (e.price * e.quantity)}.sum
-  end
-
-  def sales_ytd(date = Date.today)
-    self.orders.where("invoice_date >= ? AND invoice_date <= ?", date.last_year, date).map {|e| (e.price * e.quantity)}.sum
-  end
-
-  def sales_where(start_month, start_year, end_month, end_year)
-    start_date = Date.new(start_year, start_month)
-    end_date = Date.new(end_year, end_month).end_of_month
-    self.orders.where("invoice_date >= ? AND invoice_date <= ?", start_date, end_date).map {|e| (e.price * e.quantity)}.sum
+  def get_sales_numbers(date = Date.today)
+    numbers = []
+    12.times do |time|
+      if date.month - time > 0
+        month = date.month - time
+        year = date.year
+      else
+        month = date.month - time + 12
+        year = date.year - 1
+      end
+      numbers << [
+        Date.new(year, month).strftime("%b %Y"),
+        self.sales_numbers.where(month: month, year: year).pluck(:sales).first,
+        self.sales_numbers.where(month: month, year: year - 1).pluck(:sales).first
+      ]
+    end
+    numbers
   end
 
   def product_mix(year = Date.today.year)
@@ -27,7 +31,7 @@ class Customer < ApplicationRecord
     categories_hash = {}
     categories.each do |category|
       if self.products.where(category: category).any?
-        categories_hash[category] = (self.products.where(category: category).map {|e| e.sales_year(self.user_id, self.id, year)}.sum / self.sales_year(year))
+        categories_hash[category] = self.get_category_sales(category)/self.sales_year
       else
         categories_hash[category] = 0
       end
@@ -35,91 +39,81 @@ class Customer < ApplicationRecord
     categories_hash
   end
 
-  def category_sales(category, date = Date.today)
-    self.products.where(category: category).map {|e| e.sales_ytd(self.user_id, self.id, date)}.sum
-  end
-
-  def growth(date = Date.today)
-    self.sales_ytd(date) - self.sales_ytd(date.last_year)
-  end
-
-  def best_sellers(limit = 15, date = Date.today)
-    products = []
-    self.products.each {|e| products << {product: e, sales_ytd: e.sales_ytd(self.user_id, self.id), growth: e.growth(self.user_id, self.id)}}
-    products.sort_by {|e| e[:sales_ytd]}.reverse[0..(limit - 1)]
-  end
-
-  def best_groups(date = Date.today)
-    hash = {}
-    self.groups.each {|e| hash[e.number] = {
-      sales_ytd: e.products.map {|prod| prod.sales_ytd(self.user_id, self.id, date)}.sum,
-      growth: e.products.map {|prod| prod.growth(self.user_id, self.id, date.year)}.sum
-     }}
-    hash.sort_by {|k,v| v["sales_ytd"]}.reverse.to_h
+  def get_category_sales(category, date = Date.today)
+    self.customer_products.joins(:product).where("category = '#{category}'").sum(:sales_year)
   end
 
   def age
     (Date.today - self.orders.order(:invoice_date => :desc).last.invoice_date).to_i
   end
 
+  def best_sellers
+
+  end
+
   def new_items(date = Date.today)
-    self.products.collect {|e| [e.number, e.sales_ytd(self.user_id, self.id, date)] if e.age <= 180}.compact.sort_by {|e| e[1]}.reverse.to_h
+    self.products.order(:sales_year => :desc).where("age <= 180")
   end
 
   def promo_percentage
-    self.orders.where(promo: true).map {|e| e.price * e.quantity}.sum / self.orders.all.map {|e| e.price * e.quantity}.sum
+    self.orders.where(promo: true).sum(:total) / self.orders.sum(:total)
   end
 
-  def sales_numbers(year = Date.today.year, month = Date.today.month)
+  def recommendations
+    @products = Product.all.pluck(:id)
+    @hash = {}
+    @customers = Customer.all.includes(:customer_products)
+    @customers.each do |customer|
+      @hash[customer.id] = {}
+      @products.each do |id|
+        if customer.customer_products.pluck(:product_id).include?(id)
+          @hash[customer.id][id] = customer.customer_products.where(product_id: id).pluck(:sales_year)[0]
+        else
+          @hash[customer.id][id] = 0
+        end
+      end
+    end
+    @hash
+    Pearson.recommendations(@hash, self.id)
+  end
+
+  def missing_best_sellers(date = Date.today)
+    (self.user.products.order(:sales_year => :desc) - self.products.order(:sales_year => :desc)).first(50)
+  end
+
+  def missing_new_items(date = Date.today)
+    (self.user.new_items - self.new_items)
+  end
+
+  def get_sales_numbers(date = Date.today)
     numbers = []
-    6.times do
+    12.times do |time|
+      if date.month - time > 0
+        month = date.month - time
+        year = date.year
+      else
+        month = date.month - time + 12
+        year = date.year - 1
+      end
       numbers << [
         Date.new(year, month).strftime("%b %Y"),
-        self.sales_month(year, month),
-        self.sales_month(year - 1, month)
+        self.sales_numbers.where(month: month, year: year).pluck(:sales),
+        self.sales_numbers.where(month: month, year: year - 1).pluck(:sales)
       ]
-      if month == 1
-        month = 12
-        year -= 1
-      else
-        month -= 1
-      end
     end
     numbers.reverse
   end
 
-  def recommendations
-    require 'csv'
-    @csv = CSV.read('recommendations.csv', headers: true)
-    @hash = {}
-    @csv.each do |row|
-      @customer_id = row["customer_id"]
-      @products = row.to_h
-      @products.delete("customer_id")
-      @products.each {|key, val| @products[key] = val.to_f}
-      @hash[@customer_id] = @products
-    end
-    Pearson.recommendations(@hash, self.id.to_s)
-  end
-
-  def self.write_recommendations
-    require 'csv'
-    @headers = ["customer_id"]
-    @arr = []
-    Product.all.each {|e| @headers << e.number}
-    Customer.all.each do |customer|
-      @arr2 = [customer.id]
-      Product.all.each do |product|
-        @val = product.sales_ytd(nil, customer.id)
-        @arr2 << @val
-      end
-      @arr << @arr2
-    end
-    CSV.open('recommendations.csv', 'w', headers: true) do |csv|
-      csv << @headers
-      @arr.each do |a|
-        csv << a
-      end
+  def self.update_sales
+    customers = Customer.all.includes(:orders)
+    customers.each do |customer|
+      customer.update(
+        sales_year: customer.orders.where('invoice_date <= ? AND invoice_date >= ?', Date.today, Date.today.last_year).sum(:total),
+        prev_sales_year: customer.orders.where('invoice_date <= ? AND invoice_date >= ?', Date.today.last_year, Date.today.last_year.last_year).sum(:total),
+        sales_ytd: customer.orders.where('invoice_date <= ? AND invoice_date >= ?', Date.today, Date.today.beginning_of_year).sum(:total),
+        prev_sales_ytd: customer.orders.where('invoice_date <= ? AND invoice_date >= ?', Date.today.last_year, Date.today.last_year.beginning_of_year).sum(:total),
+      )
+      customer.update(growth: customer.sales_year - customer.prev_sales_year)
     end
   end
 end

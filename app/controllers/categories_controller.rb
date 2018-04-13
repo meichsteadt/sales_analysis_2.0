@@ -1,27 +1,34 @@
 class CategoriesController < ApplicationController
+  # Need this???
   def index
-    params[:limit] ? @limit = params[:limit] : @limit = 15
+    params[:page_number] ? @page_number = params[:page_number].to_i : @page_number = 1
     @categories = {}
     ["dining", "bedroom", "seating", "youth", "occasional", "home"].each do |category|
-      @products = []
       if params[:customer_id]
-        Customer.find(params[:customer_id]).products.where(category: category).each {|e| @products << {product: e, sales_ytd: e.sales_ytd(nil, params[:customer_id]), growth: e.growth(nil, params[:customer_id])}}
+        @products = Customer.find(params[:customer_id]).customer_products.joins(:product).where(products: {category: category}).order(:sales_year => :desc)
       else
-        current_user.products.where(category: category).each {|e| @products << {product: e, sales_ytd: e.sales_ytd(current_user.id, nil), growth: e.growth(current_user.id, nil)}}
+        @products = current_user.user_products.joins(:products).where(products: {category: category}).order(:sales_year => :desc)
       end
-      @categories[category] = @products.sort_by {|e| e[:sales_ytd]}.reverse[0..(@limit - 1)]
+      @categories[category] = @products
     end
     render json: @categories
   end
 
   def show
-    params[:limit] ? @limit = params[:limit] : @limit = 15
-    @products = []
+    params[:page_number] ? @page_number = params[:page_number].to_i : @page_number = 1
+    params[:sort_by] ? @sort_by = params[:sort_by] : @sort_by = "sales"
     if params[:customer_id]
-      Customer.find(params[:customer_id]).products.where(category: params[:name]).each {|e| @products << {product: e, sales_ytd: e.sales_ytd(nil, params[:customer_id]), growth: e.growth(nil, params[:customer_id])}}
+      @products = Customer.find(params[:customer_id]).customer_products
     else
-      current_user.products.where(category: params[:name]).each {|e| @products << {product: e, sales_ytd: e.sales_ytd(current_user.id, nil), growth: e.growth(current_user.id, nil)}}
+      @products = current_user.user_products
     end
-    render json: @products.sort_by {|e| e[:sales_ytd]}.reverse[0..(@limit - 1)]
+    if @sort_by === "sales"
+      @products = @products.joins(:product).where(products: {category: params[:name]}).order(:sales_year => :desc)
+    elsif @sort_by === "growth"
+      @products = @products.joins(:product).where(products: {category: params[:name]}).order(:growth => :desc)
+    elsif @sort_by === "number"
+      @products = @products.joins(:product).where(products: {category: params[:name]}).order(:sales_year => :desc).limit(50).sort_by {|e| e.number}
+    end
+    render json: paginate(@products.first(50), @page_number)
   end
 end

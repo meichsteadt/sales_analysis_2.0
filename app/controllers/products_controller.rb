@@ -1,13 +1,19 @@
 class ProductsController < ApplicationController
   def index
-    @products = []
-    @limit = 10
-    current_user.products.map {|e| @products.push({product: e, sales_ytd: e.sales_ytd(current_user.id), growth: e.growth(current_user.id)})}
-    render json: @products.sort_by {|e| e[:sales_ytd]}.reverse[0..@limit]
+    params[:page_number] ? @page_number = params[:page_number].to_i : @page_number = 1
+    params[:sort_by] ? @sort_by = params[:sort_by] : @sort_by = "sales"
+    if(@sort_by === "sales")
+      @products = current_user.products.order(:sales_year => :desc)
+    elsif @sort_by === "growth"
+      @products = current_user.products.order(:growth => :desc)
+    elsif @sort_by === "number"
+      @products = current_user.products.order(:number)
+    end
+    render json: paginate(@products, @page_number)
   end
 
   def show
     @product = Product.find(params[:id])
-    render json: {product: @product, sales_ytd: @product.sales_ytd(current_user.id, nil), sales_last_year: @product.sales_ytd(current_user.id, nil), growth: @product.growth(current_user.id, nil)}
+    render json: @product
   end
 end

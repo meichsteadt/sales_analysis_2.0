@@ -10,40 +10,66 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180315014422) do
+ActiveRecord::Schema.define(version: 20180411214513) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
+
+  create_table "customer_groups", force: :cascade do |t|
+    t.integer "customer_id"
+    t.integer "group_id"
+    t.float   "sales_year",      default: 0.0
+    t.float   "prev_sales_year", default: 0.0
+    t.float   "sales_ytd",       default: 0.0
+    t.float   "prev_sales_ytd",  default: 0.0
+    t.float   "growth",          default: 0.0
+    t.string  "number"
+    t.string  "name"
+    t.index ["customer_id"], name: "index_customer_groups_on_customer_id", using: :btree
+    t.index ["group_id"], name: "index_customer_groups_on_group_id", using: :btree
+  end
+
+  create_table "customer_products", force: :cascade do |t|
+    t.integer "customer_id"
+    t.integer "product_id"
+    t.float   "sales_year",      default: 0.0
+    t.float   "prev_sales_year", default: 0.0
+    t.float   "sales_ytd",       default: 0.0
+    t.float   "prev_sales_ytd",  default: 0.0
+    t.float   "growth",          default: 0.0
+    t.string  "number"
+    t.string  "name"
+    t.index ["customer_id"], name: "index_customer_products_on_customer_id", using: :btree
+    t.index ["product_id"], name: "index_customer_products_on_product_id", using: :btree
+  end
 
   create_table "customers", force: :cascade do |t|
     t.string   "name"
     t.integer  "user_id"
     t.string   "name_id"
     t.string   "state"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-  end
-
-  create_table "customers_groups", force: :cascade do |t|
-    t.integer "group_id"
-    t.integer "customer_id"
-  end
-
-  create_table "customers_products", force: :cascade do |t|
-    t.integer "customer_id"
-    t.integer "product_id"
+    t.datetime "created_at",                    null: false
+    t.datetime "updated_at",                    null: false
+    t.float    "sales_year",      default: 0.0
+    t.float    "prev_sales_year", default: 0.0
+    t.float    "sales_ytd",       default: 0.0
+    t.float    "prev_sales_ytd",  default: 0.0
+    t.float    "growth",          default: 0.0
+    t.index ["user_id"], name: "index_customers_on_user_id", using: :btree
   end
 
   create_table "groups", force: :cascade do |t|
     t.string   "number"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at",                    null: false
+    t.datetime "updated_at",                    null: false
     t.string   "category"
-  end
-
-  create_table "groups_users", force: :cascade do |t|
-    t.integer "group_id"
-    t.integer "user_id"
+    t.float    "sales_ytd"
+    t.float    "prev_sales_ytd"
+    t.string   "image"
+    t.float    "growth",          default: 0.0
+    t.float    "sales_year",      default: 0.0
+    t.float    "prev_sales_year", default: 0.0
+    t.integer  "age"
   end
 
   create_table "orders", force: :cascade do |t|
@@ -58,27 +84,75 @@ ActiveRecord::Schema.define(version: 20180315014422) do
     t.datetime "updated_at",                 null: false
     t.integer  "product_id"
     t.float    "total",        default: 0.0
+    t.index ["customer_id"], name: "index_orders_on_customer_id", using: :btree
+    t.index ["product_id"], name: "index_orders_on_product_id", using: :btree
+    t.index ["user_id"], name: "index_orders_on_user_id", using: :btree
   end
 
   create_table "products", force: :cascade do |t|
     t.string   "category"
     t.string   "number"
     t.integer  "group_id"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at",                    null: false
+    t.datetime "updated_at",                    null: false
+    t.float    "sales_year"
+    t.float    "prev_sales_year"
+    t.float    "sales_ytd",       default: 0.0
+    t.float    "prev_sales_ytd"
+    t.float    "price"
+    t.string   "image"
+    t.float    "growth",          default: 0.0
+    t.float    "promo_price"
+    t.integer  "age"
   end
 
-  create_table "products_users", force: :cascade do |t|
+  create_table "sales_numbers", force: :cascade do |t|
+    t.string  "numberable_type"
+    t.integer "numberable_id"
+    t.integer "month"
+    t.integer "year"
+    t.float   "sales",           default: 0.0
+    t.integer "user_id"
+    t.index ["numberable_type", "numberable_id"], name: "index_sales_numbers_on_numberable_type_and_numberable_id", using: :btree
+  end
+
+  create_table "user_groups", force: :cascade do |t|
+    t.integer "user_id"
+    t.integer "group_id"
+    t.float   "sales_year"
+    t.float   "prev_sales_year"
+    t.float   "sales_ytd"
+    t.float   "prev_sales_ytd",  default: 0.0
+    t.float   "growth",          default: 0.0
+    t.string  "number"
+    t.index ["group_id"], name: "index_user_groups_on_group_id", using: :btree
+    t.index ["user_id"], name: "index_user_groups_on_user_id", using: :btree
+  end
+
+  create_table "user_products", force: :cascade do |t|
     t.integer "user_id"
     t.integer "product_id"
+    t.float   "sales_year"
+    t.float   "prev_sales_year"
+    t.float   "sales_ytd"
+    t.float   "prev_sales_ytd",  default: 0.0
+    t.float   "growth",          default: 0.0
+    t.string  "number"
+    t.index ["product_id"], name: "index_user_products_on_product_id", using: :btree
+    t.index ["user_id"], name: "index_user_products_on_user_id", using: :btree
   end
 
   create_table "users", force: :cascade do |t|
     t.string   "email"
     t.string   "password_digest"
-    t.string   "rep_ids",         default: [],              array: true
-    t.datetime "created_at",                   null: false
-    t.datetime "updated_at",                   null: false
+    t.string   "rep_ids",         default: [],               array: true
+    t.datetime "created_at",                    null: false
+    t.datetime "updated_at",                    null: false
+    t.float    "sales_year",      default: 0.0
+    t.float    "prev_sales_year", default: 0.0
+    t.float    "sales_ytd",       default: 0.0
+    t.float    "prev_sales_ytd",  default: 0.0
+    t.float    "growth",          default: 0.0
   end
 
 end
