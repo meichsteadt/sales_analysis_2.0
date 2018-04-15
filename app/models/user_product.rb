@@ -6,10 +6,11 @@ class UserProduct < ApplicationRecord
   def self.update_sales
     UserProduct.all.each do |up|
       orders = Order.where(user_id: up.user_id, product_id: up.product_id)
-      sales_year = orders.where("invoice_date >= ? AND invoice_date <= ?", Date.today.last_year, Date.today).sum(:total)
-      prev_sales_year = orders.where("invoice_date >= ? AND invoice_date <= ?", Date.today.last_year.last_year, Date.today.last_year).sum(:total)
-      sales_ytd = orders.where("invoice_date >= ? AND invoice_date <= ?", Date.today.beginning_of_year, Date.today).sum(:total)
-      prev_sales_ytd = orders.where("invoice_date >= ? AND invoice_date <= ?", Date.today.beginning_of_year.last_year, Date.today.last_year).sum(:total)
+      end_date = orders.maximum(:invoice_date)
+      sales_year = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.last_year, end_date).sum(:total)
+      prev_sales_year = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.last_year.last_year, end_date.last_year).sum(:total)
+      sales_ytd = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.beginning_of_year, end_date).sum(:total)
+      prev_sales_ytd = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.beginning_of_year.last_year, end_date.last_year).sum(:total)
       product_number = up.product.number
       up.update(
         number: product_number,

@@ -62,11 +62,12 @@ class User < ApplicationRecord
 
   def update_sales
     @orders = self.orders
+    end_date = @orders.maximum(:invoice_date)
     self.update(
-      sales_ytd: @orders.where('invoice_date <= ? AND invoice_date >= ?', Date.today, Date.today.beginning_of_year).sum(:total),
-      prev_sales_ytd: @orders.where('invoice_date <= ? AND invoice_date >= ?', Date.today.last_year, Date.today.last_year.beginning_of_year).sum(:total),
-      sales_year: @orders.where('invoice_date <= ? AND invoice_date >= ?', Date.today, Date.today.last_year).sum(:total),
-      prev_sales_year: @orders.where('invoice_date <= ? AND invoice_date >= ?', Date.today.last_year, Date.today.last_year.last_year).sum(:total)
+      sales_ytd: @orders.where('invoice_date <= ? AND invoice_date >= ?', end_date, end_date.beginning_of_year).sum(:total),
+      prev_sales_ytd: @orders.where('invoice_date <= ? AND invoice_date >= ?', end_date.last_year, end_date.last_year.beginning_of_year).sum(:total),
+      sales_year: @orders.where('invoice_date <= ? AND invoice_date >= ?', end_date, end_date.last_year).sum(:total),
+      prev_sales_year: @orders.where('invoice_date <= ? AND invoice_date >= ?', end_date.last_year, end_date.last_year.last_year).sum(:total)
     )
     self.update(growth: self.sales_year - self.prev_sales_year)
   end

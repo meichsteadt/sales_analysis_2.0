@@ -37,10 +37,8 @@ class Upload
       unless @user.groups.include?(@group)
         @user.groups << @group
       end
-      unless Order.where(invoice_id: row["Invoice"], product_id: @product.id).any?
-        @order = Order.create(customer_id: @customer.id, invoice_id: row["Invoice"], invoice_date: convert_date(row["Invoice Date"]), quantity: row["Order Qty"], promo: promo(row["Price Name"]), user_id: user_id, product_id: @product.id, total: row["Order Price"])
-        @order.update(price: (@order.price / @order.quantity))
-      end
+      @order = Order.create(customer_id: @customer.id, invoice_id: row["Invoice"], invoice_date: convert_date(row["Invoice Date"]), quantity: row["Order Qty"], promo: promo(row["Price Name"]), user_id: user_id, product_id: @product.id, total: row["Order Price"].delete(",").to_f)
+      @order.update(price: (@order.price / @order.quantity))
     end
     update_sales(@user)
   end

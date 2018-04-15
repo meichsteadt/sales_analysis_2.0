@@ -6,10 +6,11 @@ class CustomerProduct < ApplicationRecord
     @customer_products = CustomerProduct.all
     @customer_products.each do |cp|
       orders = Order.where(customer_id: cp.customer_id, product_id: cp.product_id)
-      sales_year = orders.where("invoice_date >= ? AND invoice_date <= ?", Date.today.last_year, Date.today).sum(:total)
-      prev_sales_year = orders.where("invoice_date >= ? AND invoice_date <= ?", Date.today.last_year.last_year, Date.today.last_year).sum(:total)
-      sales_ytd = orders.where("invoice_date >= ? AND invoice_date <= ?", Date.today.beginning_of_year, Date.today).sum(:total)
-      prev_sales_ytd = orders.where("invoice_date >= ? AND invoice_date <= ?", Date.today.beginning_of_year.last_year, Date.today.last_year).sum(:total)
+      end_date = orders.maximum(:invoice_date)
+      sales_year = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.last_year, end_date).sum(:total)
+      prev_sales_year = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.last_year.last_year, end_date.last_year).sum(:total)
+      sales_ytd = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.beginning_of_year, end_date).sum(:total)
+      prev_sales_ytd = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.beginning_of_year.last_year, end_date.last_year).sum(:total)
       customer_name = cp.customer.name
       product_number = cp.product.number
       cp.update(

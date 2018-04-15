@@ -107,11 +107,12 @@ class Customer < ApplicationRecord
   def self.update_sales
     customers = Customer.all.includes(:orders)
     customers.each do |customer|
+    end_date = customer.orders.maximum(:invoice_date)
       customer.update(
-        sales_year: customer.orders.where('invoice_date <= ? AND invoice_date >= ?', Date.today, Date.today.last_year).sum(:total),
-        prev_sales_year: customer.orders.where('invoice_date <= ? AND invoice_date >= ?', Date.today.last_year, Date.today.last_year.last_year).sum(:total),
-        sales_ytd: customer.orders.where('invoice_date <= ? AND invoice_date >= ?', Date.today, Date.today.beginning_of_year).sum(:total),
-        prev_sales_ytd: customer.orders.where('invoice_date <= ? AND invoice_date >= ?', Date.today.last_year, Date.today.last_year.beginning_of_year).sum(:total),
+        sales_year: customer.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date, end_date.last_year).sum(:total),
+        prev_sales_year: customer.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date.last_year, end_date.last_year.last_year).sum(:total),
+        sales_ytd: customer.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date, end_date.beginning_of_year).sum(:total),
+        prev_sales_ytd: customer.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date.last_year, end_date.last_year.beginning_of_year).sum(:total),
       )
       customer.update(growth: customer.sales_year - customer.prev_sales_year)
     end

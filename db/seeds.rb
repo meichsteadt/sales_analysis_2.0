@@ -9,4 +9,4 @@ require 'upload'
 User.create(email: "hal.eichsteadt@gmail.com", password: "password")
 User.create(email: "shawnzum@icloud.com", password: "password")
 Upload.csv('040518.csv', 1)
-Upload.csv('shawn033118.csv', 1)
+Upload.csv('shawn033118.csv', 2)
