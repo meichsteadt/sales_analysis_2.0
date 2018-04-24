@@ -29,3 +29,34 @@ Customer.where("sales_year > 15000").includes(:customer_products).each do |c|
     categories[:generalists][c.id] = sy/i
   end
 end
+
+
+def top(customer, p_stop)
+  p = 0
+  n = 0
+  @customer = customer
+  @products = @customer.customer_products.order(:sales_year => :desc)
+  @sales_year = @customer.sales_year
+  while p < p_stop
+    p += @products[n].sales_year/@sales_year
+    n += 1
+  end
+  n
+end
+
+
+def test
+  n = 50
+  results = {}
+  customers = Customer.where("sales_year > 48000")
+  while n < 200
+    results[n] = []
+    customers.each do |customer|
+    i = Random.rand(10)
+    test_product = customer.customer_products.order(:sales_year => :desc)[i].product
+      results[n] << customer.recommendations(n, test_product.id)
+    end
+    n += 10
+  end
+  results.map {|k,v| [k, v.mean]}.sort_by {|k,v| v}.to_h
+end

@@ -59,22 +59,48 @@ class Customer < ApplicationRecord
     self.orders.where(promo: true).sum(:total) / self.orders.sum(:total)
   end
 
-  def recommendations
-    @products = Product.all.pluck(:id)
-    @hash = {}
-    @customers = Customer.all.includes(:customer_products)
-    @customers.each do |customer|
-      @hash[customer.id] = {}
-      @products.each do |id|
-        if customer.customer_products.pluck(:product_id).include?(id)
-          @hash[customer.id][id] = customer.customer_products.where(product_id: id).pluck(:sales_year)[0]
-        else
-          @hash[customer.id][id] = 0
+  def recommendations(limit = 50, test_id = nil)
+    comps = Recommendation.comparisons(self.id, limit)
+    @recommendations = {}
+    @sim_sums = {}
+    @props_sum = {}
+    @customer1_products = {}
+
+    # get customer1 orders into hash {id => sales_year}
+    self.customer_products.order(:sales_year => :desc).limit(limit).pluck(:product_id, :sales_year).map {|m| @customer1_products[m[0]] = m[1] unless m[0] == test_id}.reject! {|e| e == nil}
+
+    comps.each do |comp|
+      @customer2_products = {}
+      if comp[1] > 0
+        # get customer2 orders into hash {id => sales_year}
+        comp[0].customer_products.order(:sales_year => :desc).limit(limit).pluck(:product_id, :sales_year).map {|m| @customer2_products[m[0]] = m[1]}
+
+        # get id's of missing products
+        mi = @customer2_products.map {|k, v| k} - @customer1_products.map {|k, v| k}
+
+        # normalize for different stores sizes
+        @c1_sum = self.sales_year
+        @c2_sum = comp[0].sales_year
+        @size_prop = @c1_sum/@c2_sum
+
+        # loop through each missing product and add customer 2's sales_year for the product time their sim_pearson to the total and add the sum of the sim_pearson to sim_sums
+        mi.each do |product_id|
+          # don't recommend palette
+          unless product_id == 1899
+            if @recommendations[product_id]
+              @recommendations[product_id] += (@customer2_products[product_id] * comp[1])
+              @sim_sums[product_id] += comp[1]
+              @props_sum[product_id] << (@size_prop)
+            else
+              @recommendations[product_id] = ((@customer2_products[product_id] * comp[1]))
+              @sim_sums[product_id] = comp[1]
+              @props_sum[product_id] = [@size_prop]
+            end
+          end
         end
       end
     end
-    @hash
-    Pearson.recommendations(@hash, self.id)
+    @recommendations.map {|k,v| [k, (v/@sim_sums[k])]}.map {|k,v| [k, (v * @props_sum[k].mean)] if @props_sum[k].length >= 2 }.reject! {|r| r == nil}.sort_by {|s| s[1]}.reverse.first(50).map {|m| Product.find(m[0])}
   end
 
   def missing_best_sellers(date = Date.today)

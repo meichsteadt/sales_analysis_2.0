@@ -15,9 +15,9 @@ class Upload
       end
       @product = @user.products.find_by_number(row["Model"])
       unless @product
-        @group = Group.find_by_number(row["Model"])
+        @group = Group.where(number: row["Model"], category: @categories[row["Model"]]).first
         unless @group
-          @group = Group.find_by_number(group_number(row["Model"]))
+          @group = Group.where(number: group_number(row["Model"]), category: @categories[row["Model"]]).first
           unless @group
             @group = Group.create(number: group_number(row["Model"]), category: @categories[row["Model"]])
           end

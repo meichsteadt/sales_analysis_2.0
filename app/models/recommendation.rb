@@ -1,9 +1,9 @@
 class Recommendation
-  def sim_pearson(customer1, customer2)
+  def sim_pearson(customer1_orders, customer2_orders)
     @customer1_products = {}
     @customer2_products = {}
-    customer1.customer_products.order(:sales_year => :desc).limit(100).pluck(:product_id, :sales_year).map {|e| @customer1_products[e[0]] = e[1]}
-    customer2.customer_products.order(:sales_year => :desc).limit(100).pluck(:product_id, :sales_year).map {|e| @customer2_products[e[0]] = e[1]}
+    customer1_orders.pluck(:product_id, :sales_year).map {|e| @customer1_products[e[0]] = e[1]}
+    customer2_orders.pluck(:product_id, :sales_year).map {|e| @customer2_products[e[0]] = e[1]}
 
     si = @customer1_products.map {|k, v| k} & @customer2_products.map {|k, v| k}
     n = si.length
@@ -28,25 +28,24 @@ class Recommendation
     pSum = arr3.sum
 
     num = pSum - (sum1*sum2/n)
-    den = Math.sqrt((sum1Sq - sum1**2/n)*(sum2Sq - sum2**2/n))
+    den = Math.sqrt((sum1Sq - ((sum1**2)/n))*(sum2Sq - ((sum2**2)/n)))
     if den == 0; return 0; end
 
     r=num/den
-    r
   end
 
   def timer()
     time = Time.now
-    Recommendation.comparisons
+    Recommendation.comparisons(80)
     Time.now - time
   end
 
-  def self.comparisons
+  def self.comparisons(customer_id, limit)
     @r = Recommendation.new()
-    @customers = Customer.where("sales_year > 15000").includes(:customer_products)
-    @c1 = Customer.find(27)
+    @c1 = Customer.find(customer_id)
+    @customers = @c1.user.customers.where("sales_year > 48000").includes(:customer_products)
     @comps = {}
-    @customers.map {|e| @comps[e.id] = @r.sim_pearson(@c1, e) if @c1 != e}
+    @customers.map {|e| @comps[e] = @r.sim_pearson(@c1.customer_products.order(:sales_year => :desc).limit(limit), e.customer_products.order(:sales_year => :desc).limit(limit)) if @c1 != e}
     @comps.sort_by {|k,v| v }
   end
 end
