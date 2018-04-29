@@ -35,13 +35,21 @@ def top(customer, p_stop)
   p = 0
   n = 0
   @customer = customer
-  @products = @customer.customer_products.order(:sales_year => :desc)
+  @products = @customer.customer_groups.order(:sales_year => :desc)
   @sales_year = @customer.sales_year
   while p < p_stop
-    p += @products[n].sales_year/@sales_year
-    n += 1
+    if @products[n]
+      p += @products[n].sales_year/@sales_year
+      n += 1
+    else
+      break
+    end
   end
   n
+end
+
+def go
+  User.first.customers.where("sales_year > 48000").map {|e| top(e, 0.8)}.mean
 end
 
 

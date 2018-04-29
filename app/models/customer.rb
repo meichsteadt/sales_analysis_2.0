@@ -88,19 +88,17 @@ class Customer < ApplicationRecord
           # don't recommend palette
           unless product_id == 1899
             if @recommendations[product_id]
-              @recommendations[product_id] += (@customer2_products[product_id] * comp[1])
+              @recommendations[product_id] += ((@customer2_products[product_id] / @c2_sum) * comp[1])
               @sim_sums[product_id] += comp[1]
-              @props_sum[product_id] << (@size_prop)
             else
-              @recommendations[product_id] = ((@customer2_products[product_id] * comp[1]))
+              @recommendations[product_id] = (((@customer2_products[product_id] / @c2_sum) * comp[1]))
               @sim_sums[product_id] = comp[1]
-              @props_sum[product_id] = [@size_prop]
             end
           end
         end
       end
     end
-    @recommendations.map {|k,v| [k, (v/@sim_sums[k])]}.map {|k,v| [k, (v * @props_sum[k].mean)] if @props_sum[k].length >= 2 }.reject! {|r| r == nil}.sort_by {|s| s[1]}.reverse.first(50).map {|m| Product.find(m[0])}
+    @recommendations.map {|k,v| [k, (v/@sim_sums[k])]}.sort_by {|s| s[1]}.reverse.first(50).map {|m| Product.find(m[0])}
   end
 
   def missing_best_sellers(date = Date.today)

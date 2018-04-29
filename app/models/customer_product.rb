@@ -6,7 +6,7 @@ class CustomerProduct < ApplicationRecord
     @customer_products = CustomerProduct.all
     @customer_products.each do |cp|
       orders = Order.where(customer_id: cp.customer_id, product_id: cp.product_id)
-      end_date = orders.maximum(:invoice_date)
+      end_date = cp.customer.orders.maximum(:invoice_date)
       sales_year = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.last_year, end_date).sum(:total)
       prev_sales_year = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.last_year.last_year, end_date.last_year).sum(:total)
       sales_ytd = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.beginning_of_year, end_date).sum(:total)

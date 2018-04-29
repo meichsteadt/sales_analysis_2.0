@@ -1,6 +1,6 @@
 require 'csv'
 class Upload
-  def self.csv(csv, user_id)
+  def self.csv(csv, user_id, final = false)
     @user = User.find(user_id)
     @categories = {}
     CSV.read('pricebook.csv', headers: true).each do |row|
@@ -13,7 +13,7 @@ class Upload
         @name = row["Customer Name"].titlecase
         @customer = Customer.create(name: @name, user_id: user_id, name_id: row["Customer ID"], state: row["State"])
       end
-      @product = @user.products.find_by_number(row["Model"])
+      @product = Product.find_by_number(row["Model"])
       unless @product
         @group = Group.where(number: row["Model"], category: @categories[row["Model"]]).first
         unless @group
@@ -24,6 +24,8 @@ class Upload
         end
         @category = @group.category
         @product = @group.products.create(number: row["Model"], category: @category)
+      else
+        @group = @product.group
       end
       unless @customer.products.include?(@product)
         @customer.products << @product
@@ -38,24 +40,28 @@ class Upload
         @user.groups << @group
       end
       @order = Order.create(customer_id: @customer.id, invoice_id: row["Invoice"], invoice_date: convert_date(row["Invoice Date"]), quantity: row["Order Qty"], promo: promo(row["Price Name"]), user_id: user_id, product_id: @product.id, total: row["Order Price"].delete(",").to_f)
-      @order.update(price: (@order.price / @order.quantity))
+      if @order.total != 0 && @order.quantity != 0
+        @order.update(price: (@order.total / @order.quantity))
+      end
     end
-    update_sales(@user)
+    update_sales(@user, final)
   end
 
-  def self.update_sales(user)
-    Product.update_sales
-    Customer.update_sales
-    Group.update_sales
+  def self.update_sales(user, final)
     user.update_sales
     user.update_sales_numbers
-    UserProduct.update_sales
-    UserGroup.update_sales
-    UserProduct.write_sales_numbers
-    UserGroup.write_sales_numbers
-    CustomerProduct.update_sales
-    CustomerGroup.update_sales
-    SalesNumber.write_sales_numbers
+    if final
+      Product.update_sales
+      Customer.update_sales
+      Group.update_sales
+      UserProduct.update_sales
+      UserGroup.update_sales
+      UserProduct.write_sales_numbers
+      UserGroup.write_sales_numbers
+      CustomerProduct.update_sales
+      CustomerGroup.update_sales
+      SalesNumber.write_sales_numbers
+    end
     # Customer.write_recommendations
   end
 
@@ -82,6 +88,8 @@ class Upload
   def self.group_number(number)
     if number =~ /-1.K/ || number =~ /-3.K/
       return number.split('-').first[0..-2]
+    elsif number =~ /\dK-/
+      return number.split('-').first.delete('K')
     elsif number =~ /TF.-1/ || number =~ /TF-1/ || number =~ /TF.-2/ || number =~ /TF-2/ || number =~ /TF.-3/ || number =~ /TF-3/
       return number.split('-').first.delete('TF')
     elsif number =~ /F.-1/ || number =~ /F-1/ || number =~ /F.-2/ || number =~ /F-2/ || number =~ /F.-3/ || number =~ /F-3/

@@ -43,7 +43,7 @@ class Recommendation
   def self.comparisons(customer_id, limit)
     @r = Recommendation.new()
     @c1 = Customer.find(customer_id)
-    @customers = @c1.user.customers.where("sales_year > 48000").includes(:customer_products)
+    @customers = @c1.user.customers.where("sales_year > 48000")
     @comps = {}
     @customers.map {|e| @comps[e] = @r.sim_pearson(@c1.customer_products.order(:sales_year => :desc).limit(limit), e.customer_products.order(:sales_year => :desc).limit(limit)) if @c1 != e}
     @comps.sort_by {|k,v| v }

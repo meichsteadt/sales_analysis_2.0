@@ -24,8 +24,8 @@ class User < ApplicationRecord
     self.orders.where(promo: true).sum(:total) / self.orders.sum(:total)
   end
 
-  def get_category_sales(category, date = Date.today)
-    self.products.where(category: category).sum(:sales_year)
+  def get_category_sales(category)
+    self.user_products.joins(:product).where(products: {category: category}).sum(:sales_year)
   end
 
   def product_mix(year = Date.today.year)
@@ -79,9 +79,11 @@ class User < ApplicationRecord
     (start_year..end_year).each do |year|
       12.times do |t|
         month = t + 1
+        sales = orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:total)
         unless self.sales_numbers.where(month: month, year: year).any?
-          sales = orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:total)
           self.sales_numbers.create(month: month, year: year, sales: sales)
+        else
+          self.sales_numbers.where(month: month, year: year).first.update(sales: sales)
         end
       end
     end
