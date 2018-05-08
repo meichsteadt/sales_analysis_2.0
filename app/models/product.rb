@@ -11,22 +11,25 @@ class Product < ApplicationRecord
     (Date.today - self.orders.minimum(:invoice_date)).to_i
   end
 
+  def update_sales
+    end_date = self.orders.maximum(:invoice_date)
+    self.update(
+      sales_year: self.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date, end_date.last_year).sum(:total),
+      prev_sales_year: self.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date.last_year, end_date.last_year.last_year).sum(:total),
+      sales_ytd: self.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date, end_date.beginning_of_year).sum(:total),
+      prev_sales_ytd: self.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date.last_year, end_date.last_year.beginning_of_year).sum(:total),
+      age: self.get_age
+    )
+    self.orders.where(promo: false).first ? @price = self.orders.where(promo: false).first.price : @price = nil
+    self.orders.where(promo: true).first ? @promo_price = self.orders.where(promo: true).first.price : @promo_price = nil
+    self.update(price: @price, promo_price: @promo_price)
+    self.update(growth: self.sales_year - self.prev_sales_year)
+  end
 
   def self.update_sales
     products = Product.all.includes(:orders)
     products.each do |product|
-      end_date = product.orders.maximum(:invoice_date)
-      product.update(
-        sales_year: product.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date, end_date.last_year).sum(:total),
-        prev_sales_year: product.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date.last_year, end_date.last_year.last_year).sum(:total),
-        sales_ytd: product.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date, end_date.beginning_of_year).sum(:total),
-        prev_sales_ytd: product.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date.last_year, end_date.last_year.beginning_of_year).sum(:total),
-        age: product.get_age
-      )
-      product.orders.where(promo: false).first ? @price = product.orders.where(promo: false).first.price : @price = nil
-      product.orders.where(promo: true).first ? @promo_price = product.orders.where(promo: true).first.price : @promo_price = nil
-      product.update(price: @price, promo_price: @promo_price)
-      product.update(growth: product.sales_year - product.prev_sales_year)
+      product.update_sales
     end
   end
 

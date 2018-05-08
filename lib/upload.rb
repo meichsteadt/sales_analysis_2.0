@@ -52,14 +52,9 @@ class Upload
     user.update_sales_numbers
     if final
       Product.update_sales
-      Customer.update_sales
       Group.update_sales
-      UserProduct.update_sales
-      UserGroup.update_sales
       UserProduct.write_sales_numbers
       UserGroup.write_sales_numbers
-      CustomerProduct.update_sales
-      CustomerGroup.update_sales
       SalesNumber.write_sales_numbers
     end
     # Customer.write_recommendations

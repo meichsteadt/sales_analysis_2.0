@@ -1,8 +1,9 @@
 class MissingBestSellersController < ApplicationController
   def index
     params[:page_number] ? @page_number = params[:page_number].to_i : @page_number = 1
+    @category = params[:category]
     @customer = Customer.find(params[:customer_id])
-    @products = @customer.missing_best_sellers
+    @products = @customer.missing_best_sellers(@category)
     @missing_best_sellers = paginate(@products[0..49], @page_number)
     render json: prorate(@missing_best_sellers, @customer)
   end

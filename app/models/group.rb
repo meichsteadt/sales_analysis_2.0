@@ -10,17 +10,21 @@ class Group < ApplicationRecord
     self.products.maximum(:age)
   end
 
+  def update_sales
+    self.update(
+      sales_year: self.products.sum(:sales_year),
+      prev_sales_year: self.products.sum(:prev_sales_year),
+      sales_ytd: self.products.sum(:sales_ytd),
+      prev_sales_ytd: self.products.sum(:prev_sales_ytd),
+      age: self.get_age
+    )
+    self.update(growth: self.sales_year - self.prev_sales_year)
+  end
+
   def self.update_sales
     @groups = Group.all
     @groups.each do |group|
-      group.update(
-        sales_year: group.products.sum(:sales_year),
-        prev_sales_year: group.products.sum(:prev_sales_year),
-        sales_ytd: group.products.sum(:sales_ytd),
-        prev_sales_ytd: group.products.sum(:prev_sales_ytd),
-        age: group.get_age
-      )
-      group.update(growth: group.sales_year - group.prev_sales_year)
+      group.update_sales
     end
   end
 

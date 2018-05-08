@@ -70,6 +70,9 @@ class User < ApplicationRecord
       prev_sales_year: @orders.where('invoice_date <= ? AND invoice_date >= ?', end_date.last_year, end_date.last_year.last_year).sum(:total)
     )
     self.update(growth: self.sales_year - self.prev_sales_year)
+    self.customers.each {|e| e.update_sales}
+    self.user_products.each {|e| e.update_sales}
+    self.user_groups.each {|e| e.update_sales}
   end
 
   def update_sales_numbers

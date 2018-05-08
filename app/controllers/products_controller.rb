@@ -13,7 +13,7 @@ class ProductsController < ApplicationController
   end
 
   def show
-    @product = Product.find(params[:id])
+    @product = current_user.user_products.find_by_product_id(params[:id])
     render json: @product
   end
 end

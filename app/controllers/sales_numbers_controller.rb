@@ -9,7 +9,7 @@ class SalesNumbersController < ApplicationController
         @sales_numbers = {"message": "customer not found"}
       end
     elsif params[:product_id]
-      @sales_numbers = Product.find(params[:product_id]).get_sales_numbers
+      @sales_numbers = current_user.user_products.find_by_product_id(params[:product_id]).get_sales_numbers
     else
       @sales_numbers = current_user.get_sales_numbers
     end

@@ -101,12 +101,20 @@ class Customer < ApplicationRecord
     @recommendations.map {|k,v| [k, (v/@sim_sums[k])]}.sort_by {|s| s[1]}.reverse.first(50).map {|m| Product.find(m[0])}
   end
 
-  def missing_best_sellers(date = Date.today)
-    (self.user.products.order(:sales_year => :desc) - self.products.order(:sales_year => :desc)).first(50)
+  def missing_best_sellers(category = nil)
+    unless category
+      (self.user.products.order(:sales_year => :desc) - self.products.order(:sales_year => :desc)).first(50)
+    else
+      (self.user.products.where(category: category).order(:sales_year => :desc) - self.products.where(category: category).order(:sales_year => :desc)).first(50)
+    end
   end
 
-  def missing_new_items(date = Date.today)
-    (self.user.new_items - self.new_items)
+  def missing_new_items(category = nil)
+    unless category
+      (self.user.products.order(:growth => :desc) - self.products.order(:growth => :desc)).first(50)
+    else
+      (self.user.products.where(category: category).order(:growth => :desc) - self.products.where(category: category).order(:growth => :desc)).first(50)
+    end
   end
 
   def get_sales_numbers(date = Date.today)
@@ -128,17 +136,23 @@ class Customer < ApplicationRecord
     numbers.reverse
   end
 
+  def update_sales
+    end_date = self.orders.maximum(:invoice_date)
+    self.update(
+      sales_year: self.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date, end_date.last_year).sum(:total),
+      prev_sales_year: self.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date.last_year, end_date.last_year.last_year).sum(:total),
+      sales_ytd: self.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date, end_date.beginning_of_year).sum(:total),
+      prev_sales_ytd: self.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date.last_year, end_date.last_year.beginning_of_year).sum(:total),
+    )
+    self.update(growth: self.sales_year - self.prev_sales_year)
+    self.customer_products.each {|e| e.update_sales}
+    self.customer_groups.each {|e| e.update_sales}
+  end
+
   def self.update_sales
     customers = Customer.all.includes(:orders)
     customers.each do |customer|
-    end_date = customer.orders.maximum(:invoice_date)
-      customer.update(
-        sales_year: customer.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date, end_date.last_year).sum(:total),
-        prev_sales_year: customer.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date.last_year, end_date.last_year.last_year).sum(:total),
-        sales_ytd: customer.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date, end_date.beginning_of_year).sum(:total),
-        prev_sales_ytd: customer.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date.last_year, end_date.last_year.beginning_of_year).sum(:total),
-      )
-      customer.update(growth: customer.sales_year - customer.prev_sales_year)
+      customer.update_sales
     end
   end
 end
