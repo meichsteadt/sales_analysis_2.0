@@ -9,6 +9,12 @@ class CustomerGroup < ApplicationRecord
     prev_sales_year = customer_products.sum(:prev_sales_year)
     sales_ytd = customer_products.sum(:sales_ytd)
     prev_sales_ytd = customer_products.sum(:prev_sales_ytd)
+
+    quantity = customer_products.sum(:quantity)
+    prev_quantity = customer_products.sum(:prev_quantity)
+    quantity_ytd = customer_products.sum(:quantity_ytd)
+    prev_quantity_ytd = customer_products.sum(:prev_quantity_ytd)
+
     customer_name = self.customer.name
     group_number = self.group.number
     category = self.group.category
@@ -20,6 +26,13 @@ class CustomerGroup < ApplicationRecord
       sales_ytd: sales_ytd,
       prev_sales_ytd: prev_sales_ytd,
       growth: sales_year - prev_sales_year,
+      growth_ytd: sales_ytd - prev_sales_ytd,
+      quantity: quantity,
+      prev_quantity: prev_quantity,
+      quantity_ytd: quantity_ytd,
+      prev_quantity_ytd: prev_quantity_ytd,
+      quantity_growth: quantity - prev_quantity,
+      quantity_growth_ytd: sales_year - prev_sales_year,
       category: category
     )
   end

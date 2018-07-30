@@ -11,7 +11,8 @@ class SalesNumber < ApplicationRecord
           month = t + 1
           unless customer.sales_numbers.where(month: month, year: year).length > 0
             sales = customer.orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:total)
-            customer.sales_numbers.create(month: month, year: year, sales: sales)
+            quantity = customer.orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:quantity)
+            customer.sales_numbers.create(month: month, year: year, sales: sales, quantity: quantity)
           end
         end
       end
@@ -26,7 +27,8 @@ class SalesNumber < ApplicationRecord
           month = t + 1
           unless product.sales_numbers.where(month: month, year: year).length > 0
             sales = product.orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:total)
-            product.sales_numbers.create(month: month, year: year, sales: sales)
+            quantity = product.orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:quantity)
+            product.sales_numbers.create(month: month, year: year, sales: sales, quantity: quantity)
           end
         end
       end
@@ -41,7 +43,8 @@ class SalesNumber < ApplicationRecord
           month = t + 1
           unless group.sales_numbers.where(month: month, year: year).length > 0
             sales = group.products.joins(:sales_numbers).where(sales_numbers: {month: month, year: year}).sum(:sales)
-            group.sales_numbers.create(month: month, year: year, sales: sales)
+            quantity = group.products.joins(:sales_numbers).where(sales_numbers: {month: month, year: year}).sum(:quantity)
+            group.sales_numbers.create(month: month, year: year, sales: sales, quantity: quantity)
           end
         end
       end

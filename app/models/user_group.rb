@@ -6,10 +6,17 @@ class UserGroup < ApplicationRecord
   def update_sales
     ids = self.group.products.joins(:user_products).where(user_products: {user_id: self.user.id}).ids
     user_products = self.user.user_products.where(product_id: ids)
+
     sales_year = user_products.sum(:sales_year)
     prev_sales_year = user_products.sum(:prev_sales_year)
     sales_ytd = user_products.sum(:sales_ytd)
     prev_sales_ytd = user_products.sum(:prev_sales_ytd)
+
+    quantity = user_products.sum(:quantity)
+    prev_quantity = user_products.sum(:prev_quantity)
+    quantity_ytd = user_products.sum(:quantity_ytd)
+    prev_quantity_ytd = user_products.sum(:prev_quantity_ytd)
+
     group_number = self.group.number
     category = self.group.category
     self.update(
@@ -18,7 +25,14 @@ class UserGroup < ApplicationRecord
       prev_sales_year: prev_sales_year,
       sales_ytd: sales_ytd,
       prev_sales_ytd: prev_sales_ytd,
-      growth: sales_year - prev_sales_year
+      growth: sales_year - prev_sales_year,
+      growth_ytd: sales_ytd - prev_sales_ytd,
+      quantity: quantity,
+      prev_quantity: prev_quantity,
+      quantity_ytd: quantity_ytd,
+      prev_quantity_ytd: prev_quantity_ytd,
+      quantity_growth: quantity - prev_quantity,
+      quantity_growth_ytd: quantity_ytd - prev_quantity_ytd
     )
   end
 
@@ -63,7 +77,9 @@ class UserGroup < ApplicationRecord
       numbers << [
         Date.new(year, month).strftime("%b %Y"),
         self.sales_numbers.where(month: month, year: year).pluck(:sales).first.to_f,
-        self.sales_numbers.where(month: month, year: year - 1).pluck(:sales).first.to_f
+        self.sales_numbers.where(month: month, year: year - 1).pluck(:sales).first.to_f,
+        self.sales_numbers.where(month: month, year: year).pluck(:quantity).first,
+        self.sales_numbers.where(month: month, year: year - 1).pluck(:quantity).first
       ]
     end
     numbers.reverse

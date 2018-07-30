@@ -16,7 +16,9 @@ class UserProduct < ApplicationRecord
       numbers << [
         Date.new(year, month).strftime("%b %Y"),
         self.sales_numbers.where(month: month, year: year).pluck(:sales).first.to_f,
-        self.sales_numbers.where(month: month, year: year - 1).pluck(:sales).first.to_f
+        self.sales_numbers.where(month: month, year: year - 1).pluck(:sales).first.to_f,
+        self.sales_numbers.where(month: month, year: year).pluck(:quantity).first,
+        self.sales_numbers.where(month: month, year: year - 1).pluck(:quantity).first
       ]
     end
     numbers.reverse
@@ -29,14 +31,28 @@ class UserProduct < ApplicationRecord
     prev_sales_year = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.last_year.last_year, end_date.last_year).sum(:total)
     sales_ytd = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.beginning_of_year, end_date).sum(:total)
     prev_sales_ytd = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.beginning_of_year.last_year, end_date.last_year).sum(:total)
+
+    quantity = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.last_year, end_date).sum(:quantity)
+    prev_quantity = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.last_year.last_year, end_date.last_year).sum(:quantity)
+    quantity_ytd = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.beginning_of_year, end_date).sum(:quantity)
+    prev_quantity_ytd = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.beginning_of_year.last_year, end_date.last_year).sum(:quantity)
+
     product_number = self.product.number
+
     self.update(
       number: product_number,
       sales_year: sales_year,
       prev_sales_year: prev_sales_year,
       sales_ytd: sales_ytd,
       prev_sales_ytd: prev_sales_ytd,
-      growth: sales_year - prev_sales_year
+      growth: sales_year - prev_sales_year,
+      growth_ytd: sales_ytd - prev_sales_ytd,
+      quantity: quantity,
+      prev_quantity: prev_quantity,
+      quantity_ytd: quantity_ytd,
+      prev_quantity_ytd: prev_quantity_ytd,
+      quantity_growth: quantity - prev_quantity,
+      quantity_growth_ytd: quantity_ytd - prev_quantity_ytd
     )
   end
 
@@ -58,10 +74,11 @@ class UserProduct < ApplicationRecord
       12.times do |t|
         month = t + 1
         sales = orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:total)
+        quantity = orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:quantity)
         unless self.sales_numbers.where(month: month, year: year).any?
-          self.sales_numbers.create(month: month, year: year, sales: sales)
+          self.sales_numbers.create(month: month, year: year, sales: sales, quantity: quantity)
         else
-          self.sales_numbers.find_by(month: month, year: year).update(sales: sales)
+          self.sales_numbers.find_by(month: month, year: year).update(sales: sales, quantity: quantity)
         end
       end
     end

@@ -16,7 +16,8 @@ class Group < ApplicationRecord
       prev_sales_year: self.products.sum(:prev_sales_year),
       sales_ytd: self.products.sum(:sales_ytd),
       prev_sales_ytd: self.products.sum(:prev_sales_ytd),
-      age: self.get_age
+      age: self.get_age,
+      quantity: self.products.sum(:quantity)
     )
     self.update(growth: self.sales_year - self.prev_sales_year)
   end
@@ -40,8 +41,10 @@ class Group < ApplicationRecord
       end
       numbers << [
         Date.new(year, month).strftime("%b %Y"),
-        self.sales_numbers.where(month: month, year: year).pluck(:sales).first,
-        self.sales_numbers.where(month: month, year: year - 1).pluck(:sales).first
+        self.sales_numbers.where(month: month, year: year).pluck(:sales).first.to_f,
+        self.sales_numbers.where(month: month, year: year - 1).pluck(:sales).first.to_f,
+        self.sales_numbers.where(month: month, year: year).pluck(:quantity).first,
+        self.sales_numbers.where(month: month, year: year - 1).pluck(:quantity).first
       ]
     end
     numbers.reverse

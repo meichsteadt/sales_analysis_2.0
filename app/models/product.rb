@@ -14,16 +14,28 @@ class Product < ApplicationRecord
   def update_sales
     end_date = self.orders.maximum(:invoice_date)
     self.update(
+
       sales_year: self.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date, end_date.last_year).sum(:total),
       prev_sales_year: self.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date.last_year, end_date.last_year.last_year).sum(:total),
       sales_ytd: self.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date, end_date.beginning_of_year).sum(:total),
       prev_sales_ytd: self.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date.last_year, end_date.last_year.beginning_of_year).sum(:total),
+
+      quantity: self.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date, end_date.last_year).sum(:quantity),
+      prev_quantity: self.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date.last_year, end_date.last_year.last_year).sum(:quantity),
+      quantity_ytd: self.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date, end_date.beginning_of_year).sum(:quantity),
+      prev_quantity_ytd: self.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date.last_year, end_date.last_year.beginning_of_year).sum(:quantity),
+
       age: self.get_age
     )
     self.orders.where(promo: false).first ? @price = self.orders.where(promo: false).first.price : @price = nil
     self.orders.where(promo: true).first ? @promo_price = self.orders.where(promo: true).first.price : @promo_price = nil
     self.update(price: @price, promo_price: @promo_price)
-    self.update(growth: self.sales_year - self.prev_sales_year)
+    self.update(
+      growth: self.sales_year - self.prev_sales_year,
+      growth_ytd: self.sales_ytd - self.prev_sales_ytd,
+      quantity_growth: self.quantity - self.prev_quantity,
+      quantity_growth_ytd: self.quantity_ytd - self.prev_quantity_ytd
+    )
   end
 
   def self.update_sales

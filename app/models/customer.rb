@@ -19,8 +19,10 @@ class Customer < ApplicationRecord
       end
       numbers << [
         Date.new(year, month).strftime("%b %Y"),
-        self.sales_numbers.where(month: month, year: year).pluck(:sales).first,
-        self.sales_numbers.where(month: month, year: year - 1).pluck(:sales).first
+        self.sales_numbers.where(month: month, year: year).pluck(:sales).first.to_f,
+        self.sales_numbers.where(month: month, year: year - 1).pluck(:sales).first.to_f,
+        self.sales_numbers.where(month: month, year: year).pluck(:quantity).first,
+        self.sales_numbers.where(month: month, year: year - 1).pluck(:quantity).first
       ]
     end
     numbers
@@ -103,9 +105,9 @@ class Customer < ApplicationRecord
 
   def missing_best_sellers(category = nil)
     unless category
-      (self.user.products.order(:sales_year => :desc) - self.products.order(:sales_year => :desc)).first(50)
+      (self.user.products.joins(:user_products).order("user_products.sales_year DESC") - self.products.joins(:customer_products).order("customer_products.sales_year DESC")).uniq.first(50)
     else
-      (self.user.products.where(category: category).order(:sales_year => :desc) - self.products.where(category: category).order(:sales_year => :desc)).first(50)
+      (self.user.products.where(category: category).joins(:user_products).order("user_products.sales_year DESC") - self.products.where(category: category).joins(:customer_products).order("customer_products.sales_year DESC")).uniq.first(50)
     end
   end
 
@@ -117,25 +119,6 @@ class Customer < ApplicationRecord
     end
   end
 
-  def get_sales_numbers(date = Date.today)
-    numbers = []
-    12.times do |time|
-      if date.month - time > 0
-        month = date.month - time
-        year = date.year
-      else
-        month = date.month - time + 12
-        year = date.year - 1
-      end
-      numbers << [
-        Date.new(year, month).strftime("%b %Y"),
-        self.sales_numbers.where(month: month, year: year).pluck(:sales),
-        self.sales_numbers.where(month: month, year: year - 1).pluck(:sales)
-      ]
-    end
-    numbers.reverse
-  end
-
   def update_sales
     end_date = self.orders.maximum(:invoice_date)
     self.update(
@@ -143,8 +126,18 @@ class Customer < ApplicationRecord
       prev_sales_year: self.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date.last_year, end_date.last_year.last_year).sum(:total),
       sales_ytd: self.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date, end_date.beginning_of_year).sum(:total),
       prev_sales_ytd: self.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date.last_year, end_date.last_year.beginning_of_year).sum(:total),
+
+      quantity: self.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date, end_date.last_year).sum(:quantity),
+      prev_quantity: self.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date.last_year, end_date.last_year.last_year).sum(:quantity),
+      quantity_ytd: self.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date, end_date.beginning_of_year).sum(:quantity),
+      prev_quantity_ytd: self.orders.where('invoice_date <= ? AND invoice_date >= ?', end_date.last_year, end_date.last_year.beginning_of_year).sum(:quantity)
     )
-    self.update(growth: self.sales_year - self.prev_sales_year)
+    self.update(
+      growth: self.sales_year - self.prev_sales_year,
+      growth_ytd: self.sales_ytd - self.prev_sales_ytd,
+      quantity_growth: self.quantity - self.prev_quantity,
+      quantity_growth_ytd: self.quantity_ytd - self.prev_quantity_ytd,
+    )
     self.customer_products.each {|e| e.update_sales}
     self.customer_groups.each {|e| e.update_sales}
   end
