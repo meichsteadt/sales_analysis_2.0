@@ -29,6 +29,13 @@ class CategoriesController < ApplicationController
     elsif @sort_by === "number"
       @products = @products.joins(:product).where(products: {category: params[:name]}).order(:sales_year => :desc).limit(50).sort_by {|e| e.number}
     end
+    if true?(params[:all])
+      @products = Product.where(category: params[:name]).order(:sales_year => :desc)
+    end
     render json: paginate(@products.first(50), @page_number)
+  end
+private
+  def true?(obj)
+    obj.to_s == "true"
   end
 end
