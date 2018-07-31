@@ -7,6 +7,7 @@ class User < ApplicationRecord
   has_many :user_groups
   has_many :groups, through: :user_groups
   has_many :sales_numbers, :as => :numberable
+  has_many :notes
 
   def category_sales(category, date = Date.today)
     self.products.where(category: category).map {|e| e.sales_ytd(self.id, nil, date)}.sum

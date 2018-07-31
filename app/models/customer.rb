@@ -6,6 +6,7 @@ class Customer < ApplicationRecord
   has_many :customer_groups
   has_many :groups, through: :customer_groups
   has_many :sales_numbers, :as => :numberable
+  has_many :notes
 
   def get_sales_numbers(date = Date.today)
     numbers = []

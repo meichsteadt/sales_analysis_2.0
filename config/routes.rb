@@ -8,7 +8,7 @@ Rails.application.routes.draw do
   resources :users
   resources :best_sellers, :sales_numbers, :groups, :product_mix, :categories
   resources :customers do
-    resources :sales_numbers, :customer_products, :groups, :product_mix, :categories, :missing_best_sellers, :missing_new_items, :recommendations
+    resources :sales_numbers, :customer_products, :groups, :product_mix, :categories, :missing_best_sellers, :missing_new_items, :recommendations, :notes
   end
   resources :products do
     resources :sales_numbers, :customer_products

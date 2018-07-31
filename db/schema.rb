@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180729173255) do
+ActiveRecord::Schema.define(version: 20180730235406) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -99,6 +99,16 @@ ActiveRecord::Schema.define(version: 20180729173255) do
     t.integer  "quantity_growth",     default: 0
     t.integer  "quantity_growth_ytd", default: 0
     t.decimal  "growth_ytd",          default: "0.0"
+  end
+
+  create_table "notes", force: :cascade do |t|
+    t.integer  "user_id"
+    t.integer  "customer_id"
+    t.text     "note"
+    t.datetime "created_at",  null: false
+    t.datetime "updated_at",  null: false
+    t.index ["customer_id"], name: "index_notes_on_customer_id", using: :btree
+    t.index ["user_id"], name: "index_notes_on_user_id", using: :btree
   end
 
   create_table "orders", force: :cascade do |t|
