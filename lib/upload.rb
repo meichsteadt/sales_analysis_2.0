@@ -53,6 +53,7 @@ class Upload
     if final
       Product.update_sales
       Group.update_sales
+      Customer.write_sales_numbers
       UserProduct.write_sales_numbers
       UserGroup.write_sales_numbers
       SalesNumber.write_sales_numbers
