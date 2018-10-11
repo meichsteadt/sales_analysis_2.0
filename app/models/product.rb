@@ -45,6 +45,24 @@ class Product < ApplicationRecord
     end
   end
 
+  def self.write_sales_numbers
+    @products = Product.all.includes(:orders)
+    @products.each do |product|
+      start_year = product.orders.minimum(:invoice_date).year
+      end_year = product.orders.maximum(:invoice_date).year
+      (start_year..end_year).each do |year|
+        12.times do |t|
+          month = t + 1
+          unless product.sales_numbers.where(month: month, year: year).length > 0
+            sales = product.orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:total)
+            quantity = product.orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:quantity)
+            product.sales_numbers.create(month: month, year: year, sales: sales, quantity: quantity)
+          end
+        end
+      end
+    end
+  end
+
   def get_sales_numbers(date = Date.today)
     numbers = []
     12.times do |time|

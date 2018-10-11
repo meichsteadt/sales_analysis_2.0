@@ -29,6 +29,24 @@ class Group < ApplicationRecord
     end
   end
 
+  def self.write_sales_numbers
+    @groups = Group.all.includes(:products)
+    @groups.each do |group|
+      start_year = group.products.joins(:orders).minimum("orders.invoice_date").year
+      end_year = group.products.joins(:orders).maximum("orders.invoice_date").year
+      (start_year..end_year).each do |year|
+        12.times do |t|
+          month = t + 1
+          unless group.sales_numbers.where(month: month, year: year).length > 0
+            sales = group.products.joins(:sales_numbers).where(sales_numbers: {month: month, year: year}).sum(:sales)
+            quantity = group.products.joins(:sales_numbers).where(sales_numbers: {month: month, year: year}).sum(:quantity)
+            group.sales_numbers.create(month: month, year: year, sales: sales, quantity: quantity)
+          end
+        end
+      end
+    end
+  end
+
   def get_sales_numbers(date = Date.today)
     numbers = []
     12.times do |time|

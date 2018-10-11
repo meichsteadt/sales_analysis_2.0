@@ -143,6 +143,30 @@ class Customer < ApplicationRecord
     self.customer_groups.each {|e| e.update_sales}
   end
 
+  def write_sales_number(month, year)
+    sales = self.orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:total)
+    quantity = self.orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:quantity)
+    self.sales_numbers.create(month: month, year: year, sales: sales, quantity: quantity)
+  end
+
+  def self.write_sales_numbers
+    @customers = Customer.all.includes(:orders)
+    @customers.each do |customer|
+      start_year = customer.orders.order(:invoice_date).first.invoice_date.year
+      end_year = customer.orders.order(:invoice_date => :desc ).first.invoice_date.year
+      (start_year..end_year).each do |year|
+        12.times do |t|
+          month = t + 1
+          unless customer.sales_numbers.where(month: month, year: year).length > 0
+            sales = customer.orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:total)
+            quantity = customer.orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:quantity)
+            customer.sales_numbers.create(month: month, year: year, sales: sales, quantity: quantity)
+          end
+        end
+      end
+    end
+  end
+
   def self.update_sales
     customers = Customer.all.includes(:orders)
     customers.each do |customer|

@@ -7,6 +7,10 @@ class Upload
       @categories[row["Model"]] = find_category(row["Catalog_Page"])
     end
 
+    @products = []
+    @customers = []
+    @groups = []
+
     CSV.read(csv, headers: true).each do |row|
       @customer = @user.customers.find_by_name_id(row["Customer ID"])
       unless @customer
@@ -43,7 +47,16 @@ class Upload
       if @order.total != 0 && @order.quantity != 0
         @order.update(price: (@order.total / @order.quantity))
       end
+      @product.update_sales
+      @customer.update_sales
+      @group.update_sales
+
+      @products << @product
+      @customers << @customer
+      @groups << @group
     end
+    @date = Date.today
+    @customers.each {|e| e.write_sales_number(@date.month, @date.year)}
     update_sales(@user, final)
   end
 
@@ -53,7 +66,6 @@ class Upload
     if final
       Product.update_sales
       Group.update_sales
-      Customer.write_sales_numbers
       UserProduct.write_sales_numbers
       UserGroup.write_sales_numbers
       SalesNumber.write_sales_numbers
