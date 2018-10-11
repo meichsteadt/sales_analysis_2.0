@@ -22,6 +22,7 @@ gem 'jwt'
 gem 'simple_command'
 gem 'pearson'
 gem 'descriptive_statistics'
+gem 'wdm', '>= 0.1.0'
 # Use Capistrano for deployment
 # gem 'capistrano-rails', group: :development
 
