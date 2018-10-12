@@ -29,6 +29,12 @@ class Group < ApplicationRecord
     end
   end
 
+  def write_sales_number(month, year)
+    sales = self.products.joins(:sales_numbers).where(sales_numbers: {month: month, year: year}).sum(:sales)
+    quantity = group.products.joins(:sales_numbers).where(sales_numbers: {month: month, year: year}).sum(:quantity)
+    self.sales_numbers.create(month: month, year: year, sales: sales, quantity: quantity)
+  end
+
   def self.write_sales_numbers
     @groups = Group.all.includes(:products)
     @groups.each do |group|

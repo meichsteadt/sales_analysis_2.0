@@ -1,27 +1,40 @@
 require 'csv'
 class Upload
   def self.csv(csv, user_id, final = false)
+    # find user and create category book
     @user = User.find(user_id)
     @categories = {}
     CSV.read('pricebook.csv', headers: true).each do |row|
       @categories[row["Model"]] = find_category(row["Catalog_Page"])
     end
 
+    # initialize empty arrays to keep track of what was edited
     @products = []
     @customers = []
     @groups = []
 
+
+    # Loop through csv with sales info
     CSV.read(csv, headers: true).each do |row|
+      # find customer
       @customer = @user.customers.find_by_name_id(row["Customer ID"])
+
+      # if no customer exists create a new customer
       unless @customer
         @name = row["Customer Name"].titlecase
         @customer = Customer.create(name: @name, user_id: user_id, name_id: row["Customer ID"], state: row["State"])
       end
+
+      # find product
       @product = Product.find_by_number(row["Model"])
+
+      # if no product exists:
+        # Find the group the product belongs to
+        # create a new product within that group
       unless @product
-        @group = Group.where(number: row["Model"], category: @categories[row["Model"]]).first
+        @group = Group.find_by(number: row["Model"], category: @categories[row["Model"]])
         unless @group
-          @group = Group.where(number: group_number(row["Model"]), category: @categories[row["Model"]]).first
+          @group = Group.find_by(number: group_number(row["Model"]), category: @categories[row["Model"]])
           unless @group
             @group = Group.create(number: group_number(row["Model"]), category: @categories[row["Model"]])
           end
@@ -31,41 +44,54 @@ class Upload
       else
         @group = @product.group
       end
+
+      # if customer doesn't have product in customers_proudcts add it
       unless @customer.products.include?(@product)
         @customer.products << @product
       end
+
+      # if user doesn't have product in products_users add it
       unless @user.products.include?(@product)
         @user.products << @product
       end
+
+      # if customer doesn't have group in customers_groups add it
       unless @customer.groups.include?(@group)
         @customer.groups << @group
       end
+
+      # if user doesn't have group in groups_users add it
       unless @user.groups.include?(@group)
         @user.groups << @group
       end
+
+      # create order
       @order = Order.create(customer_id: @customer.id, invoice_id: row["Invoice"], invoice_date: convert_date(row["Invoice Date"]), quantity: row["Order Qty"], promo: promo(row["Price Name"]), user_id: user_id, product_id: @product.id, total: row["Order Price"].delete(",").to_f)
       if @order.total != 0 && @order.quantity != 0
         @order.update(price: (@order.total / @order.quantity))
       end
-      @product.update_sales
-      @customer.update_sales
-      @group.update_sales
 
-      @products << @product
-      @customers << @customer
-      @groups << @group
+
+      # add products, customers, and groups to arrays
+      @products << @product unless @products.include?(@product)
+      @customers << @customer unless @customers.include?(@customer)
+      @groups << @group unless @groups.include?(@group)
     end
-    @date = Date.today
-    @customers.each {|e| e.write_sales_number(@date.month, @date.year)}
-    update_sales(@user, final)
+
+    # update sales info for the products, customers and groups
+    @date = Order.maximum(:invoice_date)
+    [@customers, @products, @groups].each do |arr|
+      arr.each do |e|
+        e.update_sales
+        e.write_sales_number(@date.month, @date.year)
+      end
+    end
+    @user.update_sales
+    @user.update_sales_numbers
   end
 
   def self.update_sales(user, final)
-    user.update_sales
-    user.update_sales_numbers
     if final
-      Product.update_sales
-      Group.update_sales
       UserProduct.write_sales_numbers
       UserGroup.write_sales_numbers
       SalesNumber.write_sales_numbers

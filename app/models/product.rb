@@ -45,6 +45,12 @@ class Product < ApplicationRecord
     end
   end
 
+  def write_sales_number(month, year)
+    sales = self.orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:total)
+    quantity = self.orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:quantity)
+    self.sales_numbers.create(month: month, year: year, sales: sales, quantity: quantity)
+  end
+
   def self.write_sales_numbers
     @products = Product.all.includes(:orders)
     @products.each do |product|
