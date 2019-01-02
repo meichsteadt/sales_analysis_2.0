@@ -2,6 +2,12 @@ class UserGroup < ApplicationRecord
   belongs_to :user
   belongs_to :group
   has_many :sales_numbers, as: :numberable
+  has_many :user_products, through: :user
+  has_many :products, through: :group
+  def orders
+    ids = self.products.joins(:user_products).where(user_products: {user_id: self.user.id}).ids
+    Order.where(product_id: ids, user_id: self.user.id)
+  end
 
   def update_sales
     ids = self.group.products.joins(:user_products).where(user_products: {user_id: self.user.id}).ids
@@ -48,17 +54,22 @@ class UserGroup < ApplicationRecord
 
   def write_sales_numbers
     ids = self.group.products.pluck(:id)
-    user_products = self.user.user_products.where(product_id: ids)
-    start_year = self.group.products.joins(:user_products).joins(:orders).minimum(:invoice_date).year
-    end_year = self.group.products.joins(:user_products).joins(:orders).maximum(:invoice_date).year
+    user_products = self.user_products.where(product_id: ids)
+    orders = self.orders
+    end_year = [(Date.today.year), orders.maximum(:invoice_date)].max
+    start_year = [(end_year - 1), orders.minimum(:invoice_date)].min
+
     (start_year..end_year).each do |year|
       12.times do |t|
         month = t + 1
-        sales = user_products.joins(:sales_numbers).where(sales_numbers: {month: month, year: year}).sum(:sales)
-        unless self.sales_numbers.where(month: month, year: year).any?
-          self.sales_numbers.create(month: month, year: year, sales: sales)
-        else
-          self.sales_numbers.find_by(month: month, year: year).update(sales: sales)
+        unless (month > Date.today.month && year == Date.today.year)
+          sales = user_products.joins(:sales_numbers).where(sales_numbers: {month: month, year: year}).sum(:sales)
+          quantity = user_products.joins(:sales_numbers).where(sales_numbers: {month: month, year: year}).sum(:quantity)
+          unless self.sales_numbers.where(month: month, year: year).any?
+            self.sales_numbers.create(month: month, year: year, sales: sales)
+          else
+            self.sales_numbers.find_by(month: month, year: year).update(sales: sales)
+          end
         end
       end
     end

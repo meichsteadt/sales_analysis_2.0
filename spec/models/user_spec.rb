@@ -5,6 +5,6 @@ describe User do
     user = User.first
     sales_year = user.sales_year
 
-    expect user.email.to eq("hal.eichsteadt@gmail.com")
+    expect(user.email).to eq("test")
   end
 end

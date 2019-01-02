@@ -1,8 +1,7 @@
 require 'csv'
 class Upload
-  def self.csv(csv, user_id, final = false)
-    # find user and create category book
-    @user = User.find(user_id)
+  def self.csv(csvs, single = false)
+    #create category book
     @categories = {}
     CSV.read('pricebook.csv', headers: true).each do |row|
       @categories[row["Model"]] = find_category(row["Catalog_Page"])
@@ -12,91 +11,120 @@ class Upload
     @products = []
     @customers = []
     @groups = []
+    @dates = []
+    @users = []
+    @user_groups = []
+    @user_products = []
 
+    csvs.each do |hash|
+      @user = User.find(hash[:user_id])
+      # Loop through csv with sales info
+      CSV.read(hash[:csv], headers: true).each do |row|
+        # find customer
+        @customer = @user.customers.find_by_name_id(row["Customer ID"])
 
-    # Loop through csv with sales info
-    CSV.read(csv, headers: true).each do |row|
-      # find customer
-      @customer = @user.customers.find_by_name_id(row["Customer ID"])
+        # if no customer exists create a new customer
+        unless @customer
+          @name = row["Customer Name"].titlecase
+          @customer = Customer.create(name: @name, user_id: hash[:user_id], name_id: row["Customer ID"], state: row["State"])
+        end
 
-      # if no customer exists create a new customer
-      unless @customer
-        @name = row["Customer Name"].titlecase
-        @customer = Customer.create(name: @name, user_id: user_id, name_id: row["Customer ID"], state: row["State"])
-      end
+        # find product
+        @product = Product.find_by_number(row["Model"])
 
-      # find product
-      @product = Product.find_by_number(row["Model"])
-
-      # if no product exists:
+        # if no product exists:
         # Find the group the product belongs to
         # create a new product within that group
-      unless @product
-        @group = Group.find_by(number: row["Model"], category: @categories[row["Model"]])
-        unless @group
-          @group = Group.find_by(number: group_number(row["Model"]), category: @categories[row["Model"]])
+        unless @product
+          @group = Group.find_by(number: row["Model"], category: @categories[row["Model"]])
           unless @group
-            @group = Group.create(number: group_number(row["Model"]), category: @categories[row["Model"]])
+            @group = Group.find_by(number: group_number(row["Model"]), category: @categories[row["Model"]])
+            unless @group
+              @group = Group.create(number: group_number(row["Model"]), category: @categories[row["Model"]])
+            end
           end
+          @category = @group.category
+          @product = @group.products.create(number: row["Model"], category: @category)
+        else
+          @group = @product.group
         end
-        @category = @group.category
-        @product = @group.products.create(number: row["Model"], category: @category)
-      else
-        @group = @product.group
+
+        # if customer doesn't have product in customers_proudcts add it
+        unless @customer.products.include?(@product)
+          @customer.products << @product
+        end
+
+        # if user doesn't have product in products_users add it
+        unless @user.products.include?(@product)
+          @user.products << @product
+        end
+
+        # if customer doesn't have group in customers_groups add it
+        unless @customer.groups.include?(@group)
+          @customer.groups << @group
+        end
+
+        # if user doesn't have group in groups_users add it
+        unless @user.groups.include?(@group)
+          @user.groups << @group
+        end
+
+        # create order
+        @order = Order.create(customer_id: @customer.id, invoice_id: row["Invoice"], invoice_date: convert_date(row["Invoice Date"]), quantity: row["Order Qty"], promo: promo(row["Price Name"]), user_id: hash[:user_id], product_id: @product.id, total: row["Order Price"].delete(",").to_f)
+        if @order.total != 0 && @order.quantity != 0
+          @order.update(price: (@order.total / @order.quantity))
+        end
+
+        @user_group = @user.user_groups.find_by(group_id: @group.id)
+        @user_product = @user.user_products.find_by(product_id: @product.id)
+
+        @date = {month: @order.invoice_date.month, year: @order.invoice_date.year}
+
+
+        # add products, customers, and groups to arrays
+        if single
+          @products << @product unless @products.include?(@product)
+          @customers << @customer unless @customers.include?(@customer)
+          @groups << @group unless @groups.include?(@group)
+          @dates << @date unless @dates.include?(@date)
+          @users << @user unless @users.include?(@user)
+          @user_products << @user_product unless @user_products.include?(@user_product)
+          @user_groups << @user_group unless @user_groups.include?(@user_group)
+        end
       end
 
-      # if customer doesn't have product in customers_proudcts add it
-      unless @customer.products.include?(@product)
-        @customer.products << @product
-      end
-
-      # if user doesn't have product in products_users add it
-      unless @user.products.include?(@product)
-        @user.products << @product
-      end
-
-      # if customer doesn't have group in customers_groups add it
-      unless @customer.groups.include?(@group)
-        @customer.groups << @group
-      end
-
-      # if user doesn't have group in groups_users add it
-      unless @user.groups.include?(@group)
-        @user.groups << @group
-      end
-
-      # create order
-      @order = Order.create(customer_id: @customer.id, invoice_id: row["Invoice"], invoice_date: convert_date(row["Invoice Date"]), quantity: row["Order Qty"], promo: promo(row["Price Name"]), user_id: user_id, product_id: @product.id, total: row["Order Price"].delete(",").to_f)
-      if @order.total != 0 && @order.quantity != 0
-        @order.update(price: (@order.total / @order.quantity))
-      end
-
-
-      # add products, customers, and groups to arrays
-      @products << @product unless @products.include?(@product)
-      @customers << @customer unless @customers.include?(@customer)
-      @groups << @group unless @groups.include?(@group)
     end
-
     # update sales info for the products, customers and groups
-    @date = Order.maximum(:invoice_date)
-    [@customers, @products, @groups].each do |arr|
-      arr.each do |e|
-        e.update_sales
-        e.write_sales_number(@date.month, @date.year)
-      end
-    end
-    @user.update_sales
+
     @user.update_sales_numbers
+    if single
+      Upload.update_sale_array([@customers, @products, @groups, @users, @user_products, @user_groups])
+    end
   end
 
-  def self.update_sales(user, final)
-    if final
-      UserProduct.write_sales_numbers
-      UserGroup.write_sales_numbers
-      SalesNumber.write_sales_numbers
-    end
+  def self.update_sales
+    Product.update_sales
+    Group.update_sales
+    User.all.each {|e| e.update_sales}
+    Customer.all.each {|e| e.update_sales}
+    Customer.write_sales_numbers
+    # Product.write_sales_numbers
+    # Group.write_sales_numbers
+    # UserProduct.write_sales_numbers
+    # UserGroup.write_sales_numbers
+    # SalesNumber.write_sales_numbers
     # Customer.write_recommendations
+  end
+
+  def self.update_sale_array(arrs)
+    arrs.each do |arr|
+      arr.each do |e|
+        e.update_sales
+        @dates.each do |date|
+          e.write_sales_number(date[:month], date[:year])
+        end
+      end
+    end
   end
 
   def self.get_category(page)
@@ -166,5 +194,29 @@ class Upload
 
   def self.promo(price_name)
     price_name === "Promotional Price" ? true : false
+  end
+
+  def self.i_forgot(user_id)
+    user = User.find(user_id)
+    user.orders.each do |order|
+      product = order.product
+      group = product.group
+      customer = order.customer
+      unless user.products.include?(product)
+        user.products << product
+      end
+
+      unless user.groups.include?(group)
+        user.groups << group
+      end
+
+      unless customer.products.include?(product)
+        order.customer.products << order.product
+      end
+
+      unless customer.groups.include?(group)
+        customer.groups << group
+      end
+    end
   end
 end

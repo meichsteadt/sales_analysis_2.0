@@ -5,6 +5,7 @@ class Group < ApplicationRecord
   has_many :customer_groups
   has_many :customers, through: :customer_groups
   has_many :sales_numbers, as: :numberable
+  has_many :orders, through: :products
 
   def get_age
     self.products.maximum(:age)
@@ -31,7 +32,7 @@ class Group < ApplicationRecord
 
   def write_sales_number(month, year)
     sales = self.products.joins(:sales_numbers).where(sales_numbers: {month: month, year: year}).sum(:sales)
-    quantity = group.products.joins(:sales_numbers).where(sales_numbers: {month: month, year: year}).sum(:quantity)
+    quantity = self.products.joins(:sales_numbers).where(sales_numbers: {month: month, year: year}).sum(:quantity)
     self.sales_numbers.create(month: month, year: year, sales: sales, quantity: quantity)
   end
 

@@ -2,6 +2,11 @@ class UserProduct < ApplicationRecord
   belongs_to :user
   belongs_to :product
   has_many :sales_numbers, as: :numberable
+  has_many :orders, -> (user_product) { where user_id: user_product.user_id}, through: :product
+
+  def get_user_id
+    self.user_id
+  end
 
   def get_sales_numbers(date = Date.today)
     numbers = []
@@ -25,7 +30,7 @@ class UserProduct < ApplicationRecord
   end
 
   def update_sales
-    orders = Order.where(user_id: self.user_id, product_id: self.product_id)
+    orders = self.orders
     end_date = self.user.orders.maximum(:invoice_date)
     sales_year = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.last_year, end_date).sum(:total)
     prev_sales_year = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.last_year.last_year, end_date.last_year).sum(:total)
@@ -57,28 +62,31 @@ class UserProduct < ApplicationRecord
   end
 
   def self.update_sales
-    UserProduct.all.each do |up|
+    self.all.each do |up|
       up.update_sales
     end
   end
 
-  def self.write_sales_numbers
-    UserProduct.all.each {|e| e.write_sales_numbers}
+  def self.write_sales_numbers(user_id)
+    orders = Order.where(user_id: user_id)
+    UserProduct.where(user_id: user_id).each {|e| e.write_sales_numbers(orders)}
   end
 
-  def write_sales_numbers
-    orders = self.product.orders.where(user_id: self.user.id)
-    start_year = orders.minimum(:invoice_date).year
-    end_year = orders.maximum(:invoice_date).year
+  def write_sales_numbers(all_orders)
+    orders = all_orders.where(product_id: self.product_id)
+    end_year = [(Date.today.year), orders.maximum(:invoice_date).year].max
+    start_year = [(end_year - 1), orders.minimum(:invoice_date).year].min
     (start_year..end_year).each do |year|
       12.times do |t|
         month = t + 1
-        sales = orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:total)
-        quantity = orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:quantity)
-        unless self.sales_numbers.where(month: month, year: year).any?
-          self.sales_numbers.create(month: month, year: year, sales: sales, quantity: quantity)
-        else
-          self.sales_numbers.find_by(month: month, year: year).update(sales: sales, quantity: quantity)
+        unless (month > Date.today.month && year == Date.today.year)
+          sales = orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:total)
+          quantity = orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:quantity)
+          unless self.sales_numbers.where(month: month, year: year).any?
+            self.sales_numbers.create(month: month, year: year, sales: sales, quantity: quantity)
+          else
+            self.sales_numbers.find_by(month: month, year: year).update(sales: sales, quantity: quantity)
+          end
         end
       end
     end
