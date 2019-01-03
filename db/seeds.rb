@@ -1,9 +1,9 @@
 require 'upload'
-User.create(email: "hal.eichsteadt@gmail.com", password: "momentsnotice1")
-User.create(email: "shawnzum@icloud.com", password: "zum5514")
-User.create(email: "mark.colburn@sbcglobal.net", password: "965777")
-User.create(email: "amastaton@aol.com", password: "Amanda")
-User.create(email: "toddkamps777@gmail.com", password: "55575557")
+User.create(email: "hal.eichsteadt@gmail.com", password: "password")
+User.create(email: "shawnzum@icloud.com", password: "password")
+User.create(email: "mark.colburn@sbcglobal.net", password: "password")
+User.create(email: "amastaton@aol.com", password: "password")
+User.create(email: "toddkamps777@gmail.com", password: "password")
 
 Upload.csv([
   {csv: 'hal_init.csv', user_id: 1},
