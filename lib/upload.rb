@@ -19,7 +19,7 @@ class Upload
     csvs.each do |hash|
       @user = User.find(hash[:user_id])
       # Loop through csv with sales info
-      CSV.read(hash[:csv], headers: true).each do |row|
+      CSV.read(hash[:csv], headers: true, :encoding => 'ISO-8859-1').each do |row|
         # find customer
         @customer = @user.customers.find_by_name_id(row["Customer ID"])
 
@@ -92,11 +92,11 @@ class Upload
           @user_groups << @user_group unless @user_groups.include?(@user_group)
         end
       end
-
+      @user.update_sales_numbers
+      
     end
     # update sales info for the products, customers and groups
 
-    @user.update_sales_numbers
     if single
       Upload.update_sale_array([@customers, @products, @groups, @users, @user_products, @user_groups])
     end

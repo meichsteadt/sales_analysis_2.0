@@ -152,15 +152,18 @@ class Customer < ApplicationRecord
   def self.write_sales_numbers
     @customers = Customer.all.includes(:orders)
     @customers.each do |customer|
-      start_year = customer.orders.order(:invoice_date).first.invoice_date.year
-      end_year = customer.orders.order(:invoice_date => :desc ).first.invoice_date.year
+      orders = customer.orders
+      end_year = orders.maximum(:invoice_date).year
+      start_year = [(end_year - 1), orders.minimum(:invoice_date).year].min
       (start_year..end_year).each do |year|
         12.times do |t|
           month = t + 1
-          unless customer.sales_numbers.where(month: month, year: year).length > 0
-            sales = customer.orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:total)
-            quantity = customer.orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:quantity)
+          sales = orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:total)
+          quantity = orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:quantity)
+          unless customer.sales_numbers.where(month: month, year: year).any?
             customer.sales_numbers.create(month: month, year: year, sales: sales, quantity: quantity)
+          else
+            customer.sales_numbers.find_by(month: month, year: year).update(month: month, year: year, sales: sales, quantity: quantity)
           end
         end
       end

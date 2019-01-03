@@ -95,8 +95,8 @@ class User < ApplicationRecord
 
   def update_sales_numbers
     orders = self.orders
-    start_year = orders.minimum(:invoice_date).year
     end_year = orders.maximum(:invoice_date).year
+    start_year = [orders.minimum(:invoice_date).year, end_year - 1].min
     (start_year..end_year).each do |year|
       12.times do |t|
         month = t + 1
@@ -105,7 +105,7 @@ class User < ApplicationRecord
         unless self.sales_numbers.where(month: month, year: year).any?
           self.sales_numbers.create(month: month, year: year, sales: sales, quantity: quantity)
         else
-          self.sales_numbers.where(month: month, year: year).first.update(sales: sales, quantity: quantity)
+          self.sales_numbers.find_by(month: month, year: year).update(sales: sales, quantity: quantity)
         end
       end
     end

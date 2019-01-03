@@ -13,7 +13,7 @@ private
   def prorate(products, customer, display = "sales_year")
     arr = []
     products[:arr].map { |m|
-      if display === "sales_year"
+      if display === "sales_year" || display.nil?
         to_display = current_user.user_products.find_by(product_id: m.id).sales_year
       elsif display === "quantity"
         to_display = current_user.user_products.find_by(product_id: m.id).quantity
