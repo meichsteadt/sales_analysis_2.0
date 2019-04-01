@@ -83,15 +83,20 @@ class User < ApplicationRecord
       quantity_growth: self.quantity - self.prev_quantity,
       quantity_growth_ytd: self.quantity_ytd - self.prev_quantity_ytd,
     )
-    self.customers.each {|e| e.update_sales}
     self.user_products.each {|e| e.update_sales}
     self.user_groups.each {|e| e.update_sales}
   end
 
+  def write_sales_number(month, year)
+    sales = self.orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:total)
+    quantity = self.orders.where("invoice_date >= ? AND invoice_date <= ?", Date.new(year, month), Date.new(year, month).end_of_month).sum(:quantity)
+    self.sales_numbers.create(month: month, year: year, sales: sales, quantity: quantity)
+  end
+
   def update_sales_numbers
     orders = self.orders
-    start_year = orders.minimum(:invoice_date).year
     end_year = orders.maximum(:invoice_date).year
+    start_year = [orders.minimum(:invoice_date).year, end_year - 1].min
     (start_year..end_year).each do |year|
       12.times do |t|
         month = t + 1
@@ -100,7 +105,7 @@ class User < ApplicationRecord
         unless self.sales_numbers.where(month: month, year: year).any?
           self.sales_numbers.create(month: month, year: year, sales: sales, quantity: quantity)
         else
-          self.sales_numbers.where(month: month, year: year).first.update(sales: sales, quantity: quantity)
+          self.sales_numbers.find_by(month: month, year: year).update(sales: sales, quantity: quantity)
         end
       end
     end

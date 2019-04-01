@@ -11,7 +11,8 @@ private
   def prorate(products, customer)
     arr = []
     products[:arr].map { |m|
-      sales_year = current_user.user_products.where(id: m.id).pluck(:sales_year).first * (customer.sales_year / current_user.sales_year)
+      # sales_year = current_user.user_products.where(id: m.id).pluck(:sales_year).first * (customer.sales_year / current_user.sales_year)
+      sales_year = current_user.user_products.where(id: m.id).pluck(:sales_year).first
       arr << {
         id: m.id,
         number: m.number,

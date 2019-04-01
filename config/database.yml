@@ -32,8 +32,8 @@ development:
   #username: sales_analysis_2_0
 
   # The password associated with the postgres role (username).
-  username: gassinbreh
-  password: "lancer34"
+  # username: meichsteadt
+  # password: "lancer34"
 
   # Connect on a TCP socket. Omitted by default since the client uses a
   # domain socket that doesn't need configuration. Windows does not have
@@ -59,8 +59,8 @@ development:
 test:
   <<: *default
   database: sales_analysis_2_0_test
-  username: gassinbreh
-  password: "lancer34"
+  # username: meichsteadt
+  # password: "lancer34"
 
 # As with config/secrets.yml, you never want to store sensitive information,
 # like your database password, in your source code. If your source code is
