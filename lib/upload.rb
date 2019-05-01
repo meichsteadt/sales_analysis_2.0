@@ -8,13 +8,13 @@ class Upload
     end
 
     # initialize empty arrays to keep track of what was edited
-    @products = []
-    @customers = []
-    @groups = []
-    @dates = []
-    @users = []
-    @user_groups = []
-    @user_products = []
+    # @products = []
+    # @customers = []
+    # @groups = []
+    # @dates = []
+    # @users = []
+    # @user_groups = []
+    # @user_products = []
 
     csvs.each do |hash|
       @user = User.find(hash[:user_id])
@@ -44,7 +44,7 @@ class Upload
             end
           end
           @category = @group.category
-          @product = @group.products.create(number: row["Model"], category: @category)
+          @product = @group.products.create(number: row["Model"], category: @categories[row["Model"]])
         else
           @group = @product.group
         end
@@ -70,35 +70,89 @@ class Upload
         end
 
         # create order
-        @order = Order.create(customer_id: @customer.id, invoice_id: row["Invoice"], invoice_date: convert_date(row["Invoice Date"]), quantity: row["Order Qty"], promo: promo(row["Price Name"]), user_id: hash[:user_id], product_id: @product.id, total: row["Order Price"].delete(",").to_f)
+        @order = Order.new(customer_id: @customer.id, invoice_id: row["Invoice"], invoice_date: convert_date(row["Invoice Date"]), quantity: row["Order Qty"], promo: promo(row["Price Name"]), user_id: hash[:user_id], product_id: @product.id, total: row["Order Price"].delete(",").to_f)
         if @order.total != 0 && @order.quantity != 0
-          @order.update(price: (@order.total / @order.quantity))
+          @order.price = (@order.total / @order.quantity)
+          @order.save!
         end
 
-        @user_group = @user.user_groups.find_by(group_id: @group.id)
-        @user_product = @user.user_products.find_by(product_id: @product.id)
-
-        @date = {month: @order.invoice_date.month, year: @order.invoice_date.year}
+        # @user_group = @user.user_groups.find_by(group_id: @group.id)
+        # @user_product = @user.user_products.find_by(product_id: @product.id)
+        #
+        # @date = {month: @order.invoice_date.month, year: @order.invoice_date.year}
 
 
         # add products, customers, and groups to arrays
-        if single
-          @products << @product unless @products.include?(@product)
-          @customers << @customer unless @customers.include?(@customer)
-          @groups << @group unless @groups.include?(@group)
-          @dates << @date unless @dates.include?(@date)
-          @users << @user unless @users.include?(@user)
-          @user_products << @user_product unless @user_products.include?(@user_product)
-          @user_groups << @user_group unless @user_groups.include?(@user_group)
-        end
+        # if single
+        #   @products << @product unless @products.include?(@product)
+        #   @customers << @customer unless @customers.include?(@customer)
+        #   @groups << @group unless @groups.include?(@group)
+        #   @dates << @date unless @dates.include?(@date)
+        #   @users << @user unless @users.include?(@user)
+        #   @user_products << @user_product unless @user_products.include?(@user_product)
+        #   @user_groups << @user_group unless @user_groups.include?(@user_group)
+        # end
       end
-      @user.update_sales_numbers
-      
+      # @user.update_sales_numbers
+
     end
     # update sales info for the products, customers and groups
 
-    if single
-      Upload.update_sale_array([@customers, @products, @groups, @users, @user_products, @user_groups])
+    # if single
+    #   Upload.update_sale_array([@customers, @products, @groups, @users, @user_products, @user_groups])
+    # end
+  end
+
+  def self.upload_from_json(user_id, numbers)
+    @categories = {}
+    CSV.read('pricebook.csv', headers: true).each do |row|
+      @categories[row["Model"]] = find_category(row["Catalog_Page"])
+    end
+
+    @user = User.find(user_id)
+    numbers.each_with_index do |row, i|
+      puts i
+      @customer = @user.customers.find_by_name_id(row["customer"])
+      unless @customer
+        @name = row["customerName"].titlecase
+        @customer = Customer.create(name: @name, user_id: user_id, name_id: row["customer"], state: row["state"])
+      end
+
+      @product = Product.find_by_number(row["model"])
+      unless @product
+        @group = Group.find_by(number: row["model"], category: @categories[row["model"]])
+        unless @group
+          @group = Group.find_by(number: group_number(row["model"]), category: @categories[row["model"]])
+          unless @group
+            @group = Group.create(number: group_number(row["model"]), category: @categories[row["model"]])
+          end
+        end
+        @category = @group.category
+        @product = @group.products.create(number: row["model"], category: @categories[row["model"]])
+      else
+        @group = @product.group
+      end
+
+      unless @customer.products.include?(@product)
+        @customer.products << @product
+      end
+
+      # if user doesn't have product in products_users add it
+      unless @user.products.include?(@product)
+        @user.products << @product
+      end
+
+      # if customer doesn't have group in customers_groups add it
+      unless @customer.groups.include?(@group)
+        @customer.groups << @group
+      end
+
+      # if user doesn't have group in groups_users add it
+      unless @user.groups.include?(@group)
+        @user.groups << @group
+      end
+
+      @order = Order.create(customer_id: @customer.id, invoice_id: row["invoice"], invoice_date: row["invoiceDate"].to_date, quantity: row["totalQty"], promo: promo(row["priceName"]), user_id: user_id, product_id: @product.id, total: row["totalPrice"], price: row["unitPrice"])
     end
   end
 
@@ -107,7 +161,7 @@ class Upload
     Group.update_sales
     User.all.each {|e| e.update_sales}
     Customer.all.each {|e| e.update_sales}
-    Customer.write_sales_numbers
+    # Customer.write_sales_numbers
     # Product.write_sales_numbers
     # Group.write_sales_numbers
     # UserProduct.write_sales_numbers

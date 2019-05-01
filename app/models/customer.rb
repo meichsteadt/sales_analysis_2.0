@@ -9,24 +9,25 @@ class Customer < ApplicationRecord
   has_many :notes
 
   def get_sales_numbers(date = Date.today)
-    numbers = []
-    12.times do |time|
-      if date.month - time > 0
-        month = date.month - time
-        year = date.year
-      else
-        month = date.month - time + 12
-        year = date.year - 1
-      end
-      numbers << [
-        Date.new(year, month).strftime("%b %Y"),
-        self.sales_numbers.where(month: month, year: year).pluck(:sales).first.to_f,
-        self.sales_numbers.where(month: month, year: year - 1).pluck(:sales).first.to_f,
-        self.sales_numbers.where(month: month, year: year).pluck(:quantity).first,
-        self.sales_numbers.where(month: month, year: year - 1).pluck(:quantity).first
-      ]
-    end
-    numbers
+    # numbers = []
+    # 12.times do |time|
+    #   if date.month - time > 0
+    #     month = date.month - time
+    #     year = date.year
+    #   else
+    #     month = date.month - time + 12
+    #     year = date.year - 1
+    #   end
+    #   numbers << [
+    #     Date.new(year, month).strftime("%b %Y"),
+    #     self.sales_numbers.where(month: month, year: year).pluck(:sales).first.to_f,
+    #     self.sales_numbers.where(month: month, year: year - 1).pluck(:sales).first.to_f,
+    #     self.sales_numbers.where(month: month, year: year).pluck(:quantity).first,
+    #     self.sales_numbers.where(month: month, year: year - 1).pluck(:quantity).first
+    #   ]
+    # end
+    # numbers
+    self.new_sales_numbers
   end
 
   def product_mix(year = Date.today.year)
@@ -175,5 +176,61 @@ class Customer < ApplicationRecord
     customers.each do |customer|
       customer.update_sales
     end
+  end
+
+  def self.ordered_sales_year(user_id, order_by, reverse = false, product_id = nil)
+    end_date = Order.maximum(:invoice_date)
+    sales_year = self.joins(:orders)
+    .where("orders.user_id = ? AND invoice_date >= ? AND invoice_date <= ?", user_id, end_date.last_year, end_date)
+    .group('customers.id')
+    .having("sum(total) > 0")
+    .select('customers.id, name, sum(total) as real_sales_year')
+    .map do |e|
+      Customer.new(
+        id: e.id,
+        name: e.name,
+        sales_year: e.real_sales_year,
+        growth: e.real_sales_year,
+      )
+    end
+
+    Customer.where(id: sales_year.pluck(:id)).joins(:orders)
+    .where("orders.user_id = ? AND invoice_date >= ? AND invoice_date <= ?", user_id, end_date.last_year.last_year, end_date.last_year)
+    .group('customers.id')
+    .select('customers.id, name, sum(total) as real_prev_sales_year')
+    .each do |e|
+      customer = sales_year.select{ |s| e if s.id == e.id}.first
+      if customer
+        customer.prev_sales_year = e["real_prev_sales_year"]
+        customer.growth = customer.sales_year - e["real_prev_sales_year"]
+      else
+        sales_year.push(
+          Customer.new(
+            id: e.id,
+            sales_year: 0,
+            name: e["name"],
+            growth: 0-e["real_prev_sales_year"],
+            prev_sales_year: e["real_prev_sales_year"]
+          )
+        )
+      end
+    end
+
+    if product_id
+      sales_year = self.joins(:orders).where("orders.user_id = ? AND orders.product_id = ? AND invoice_date >= ? AND invoice_date <= ?", user_id, product_id, end_date.last_year, end_date).group('products.id').select('products.id, number, sum(total) as total_sum').order('total_sum desc').map {|e| [e["id"], [e["number"], e["total_sum"].to_f]]}.to_h
+
+      prev_year = self.joins(:orders).where("orders.user_id = ? AND orders.product_id = ? AND invoice_date >= ? AND invoice_date <= ?", user_id, product_id, end_date.last_year.last_year, end_date.last_year).group('products.id').select('products.id, number, sum(total) as total_sum').order('total_sum desc').map {|e| [e["id"], [e["number"], e["total_sum"].to_f]]}.to_h
+    end
+
+    sales_arr = sales_year
+    if order_by == "sales"
+      sales_arr.sort_by! {|e| e.sales_year}
+    elsif order_by == "growth"
+      sales_arr.sort_by! {|e| e.growth}
+    elsif order_by == "name"
+      sales_arr.sort_by! {|e| e.name}.reverse!
+    end
+    sales_arr.reverse! if reverse
+    return sales_arr
   end
 end

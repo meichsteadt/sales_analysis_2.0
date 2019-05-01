@@ -95,4 +95,9 @@ class UserGroup < ApplicationRecord
     end
     numbers.reverse
   end
+
+  def new_sales_numbers
+    end_date = self.orders.maximum(:invoice_date)
+    self.orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.last_year.last_year.beginning_of_month, end_date).group("extract(year from invoice_date)").group("extract(month from invoice_date)").sum(:total).to_a.sort_by {|e| [e[0][0], e[0][1], e[0][2]]}
+  end
 end

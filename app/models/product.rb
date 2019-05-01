@@ -87,4 +87,63 @@ class Product < ApplicationRecord
     end
     numbers.reverse
   end
+
+  def self.ordered_sales_numbers(user_id, order_by, reverse = false, customer_id = nil)
+    t = Time.now
+    end_date = Order.maximum(:invoice_date)
+    sales_year = self.joins(:orders)
+    .where("orders.user_id = ? AND invoice_date >= ? AND invoice_date <= ?", user_id, end_date.last_year, end_date)
+    .group('products.id')
+    .having("sum(total) > 5000")
+    .select('products.id, number, sum(total) as real_sales_year').map do |e|
+      Product.new(
+        id: e.id,
+        number: e.number,
+        sales_year: e.real_sales_year,
+        growth: e.real_sales_year,
+      )
+    end
+
+
+    prev_year = Product.where(id: sales_year.pluck(:id)).joins(:orders)
+    .where("orders.user_id = ? AND invoice_date >= ? AND invoice_date <= ?", user_id, end_date.last_year.last_year, end_date.last_year)
+    .group('products.id')
+    .select('products.id, number, sum(total) as real_prev_sales_year').each do |e|
+      product = sales_year.select{ |s| e if s.id == e.id}.first
+      if product
+        product.prev_sales_year = e.real_prev_sales_year
+        product.growth = product.sales_year - e.real_prev_sales_year
+      else
+        sales_year.push(
+          Product.new(
+            id: e.id,
+            number: e.number,
+            sales_year: 0,
+            growth: e.real_prev_sales_year,
+            prev_sales_year: e.real_prev_sales_year,
+          )
+        )
+      end
+    end
+
+    if customer_id
+      sales_year = self.joins(:orders).where("orders.user_id = ? AND orders.product_id = ? AND invoice_date >= ? AND invoice_date <= ?", user_id, product_id, end_date.last_year, end_date).group('products.id').select('products.id, number, sum(total) as real_sales_year')
+
+      prev_year = self.joins(:orders).where("orders.user_id = ? AND orders.product_id = ? AND invoice_date >= ? AND invoice_date <= ?", user_id, product_id, end_date.last_year.last_year, end_date.last_year).group('products.id').select('products.id, number, sum(total) as real_prev_sales_year')
+    end
+
+
+    sales_arr = sales_year
+
+
+    if order_by == "sales"
+      sales_arr.sort_by! {|e| e.sales_year}
+    elsif order_by == "growth"
+      sales_arr.sort_by! {|e| e.growth}
+    elsif order_by == "number"
+      sales_arr.sort_by! {|e| e.number}.reverse!
+    end
+    sales_arr.reverse! if reverse
+    return sales_arr
+  end
 end

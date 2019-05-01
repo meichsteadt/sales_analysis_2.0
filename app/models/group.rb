@@ -75,4 +75,19 @@ class Group < ApplicationRecord
     numbers.reverse
   end
 
+  def self.ordered_sales_numbers(user_id, order_by, start_index, end_index, reverse = true)
+    end_date = Order.maximum(:invoice_date)
+    sales_year = self.joins(:orders).where("orders.user_id = ? AND invoice_date >= ? AND invoice_date <= ?", user_id, end_date.last_year, end_date).group('groups.id').select('groups.id, groups.number, sum(total) as total_sum').order('total_sum desc').map {|e| [e["id"], [e["number"], e["total_sum"].to_f]]}.to_h
+
+    prev_year = self.joins(:orders).where("orders.user_id = ? AND invoice_date >= ? AND invoice_date <= ?", user_id, end_date.last_year.last_year, end_date.last_year).group('groups.id').select('groups.id, groups.number, sum(total) as total_sum').order('total_sum desc').map {|e| [e["id"], [e["number"], e["total_sum"].to_f]]}.to_h
+
+    sales_arr = sales_year.map {|k,v| prev_year[k]? v << (v[1] - prev_year[k][1]) : v << v[1]}
+    if order_by == "sales"
+      sales_arr.sort_by! {|e| e[1]}
+    elsif order_by == "growth"
+      sales_arr.sort_by! {|e| e[2]}
+    end
+    sales_arr.reverse! if reverse
+    return sales_arr[start_index..end_index]
+  end
 end

@@ -9,24 +9,25 @@ class UserProduct < ApplicationRecord
   end
 
   def get_sales_numbers(date = Date.today)
-    numbers = []
-    12.times do |time|
-      if date.month - time > 0
-        month = date.month - time
-        year = date.year
-      else
-        month = date.month - time + 12
-        year = date.year - 1
-      end
-      numbers << [
-        Date.new(year, month).strftime("%b %Y"),
-        self.sales_numbers.where(month: month, year: year).pluck(:sales).first.to_f,
-        self.sales_numbers.where(month: month, year: year - 1).pluck(:sales).first.to_f,
-        self.sales_numbers.where(month: month, year: year).pluck(:quantity).first,
-        self.sales_numbers.where(month: month, year: year - 1).pluck(:quantity).first
-      ]
-    end
-    numbers.reverse
+    # numbers = []
+    # 12.times do |time|
+    #   if date.month - time > 0
+    #     month = date.month - time
+    #     year = date.year
+    #   else
+    #     month = date.month - time + 12
+    #     year = date.year - 1
+    #   end
+    #   numbers << [
+    #     Date.new(year, month).strftime("%b %Y"),
+    #     self.sales_numbers.where(month: month, year: year).pluck(:sales).first.to_f,
+    #     self.sales_numbers.where(month: month, year: year - 1).pluck(:sales).first.to_f,
+    #     self.sales_numbers.where(month: month, year: year).pluck(:quantity).first,
+    #     self.sales_numbers.where(month: month, year: year - 1).pluck(:quantity).first
+    #   ]
+    # end
+    # numbers.reverse
+    self.get_sales_numbers
   end
 
   def update_sales
