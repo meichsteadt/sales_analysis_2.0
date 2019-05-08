@@ -63,9 +63,9 @@ class Server
   end
 
 
-  def get_sales_numbers
-    begin_date = Date.today.beginning_of_month.strftime('%Y-%m-%d')
-    end_date = Date.today.strftime('%Y-%m-%d')
+  def get_sales_numbers(begin_date = Date.today.beginning_of_month, end_date = Date.today)
+    begin_date = begin_date.strftime('%Y-%m-%d')
+    end_date = end_date.strftime('%Y-%m-%d')
     url = URI("https://erp.homelegance.com/j/s/salesAnalysis/salesAnalysisData?salesAnalysisFormat=salesAnalysis_detail_customer&location=all&modelId=-1&analysisBy=customer&orderBy=default&channel=&beginDate=#{begin_date}&endDate=#{end_date}&salesman=&customer=&clasz=&shipper=&admin=&isDropShip=&invoiceStatus=YES&contactType=&group_name_ids=&state=&loginUser=#{@ul}&searchLeval=detail&tJson={%22Subject_to_Commission%22:%22Y%22,%22Catalog_Type%22:%22%22,%22simple%22:%22%22,%22is_ar%22:%22true%22,%22status%22:%2214%22,%22php%22:%221%22,%22table_time%22:%221555361952135%22,%22format%22:%22salesAnalysis_detail_customer%22}&_search=false&nd=1555363148632&rows=20000&page=1&sidx=so_id&sord=asc")
 
     http = Net::HTTP.new(url.host, url.port)
@@ -78,7 +78,7 @@ class Server
     JSON.parse(response.read_body)["items"].select{|e| e["country"] != "Customer Group Sum" && e["country"] != " Price Group Sum"}
   end
 
-  def upload_from_json
-    Upload.upload_from_json(@user_id, self.get_sales_numbers)
+  def upload_from_json(begin_date = Date.today.beginning_of_month, end_date = Date.today)
+    Upload.upload_from_json(@user_id, self.get_sales_numbers(begin_date, end_date))
   end
 end

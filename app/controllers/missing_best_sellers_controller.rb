@@ -6,7 +6,7 @@ class MissingBestSellersController < ApplicationController
     @customer = Customer.find(params[:customer_id])
     @products = @customer.missing_best_sellers(@category)
     @missing_best_sellers = paginate(@products[0..49], @page_number)
-    render json: prorate(@missing_best_sellers, @customer, @display)
+    render json: @missing_best_sellers
   end
 
 private

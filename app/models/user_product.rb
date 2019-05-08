@@ -27,18 +27,18 @@ class UserProduct < ApplicationRecord
     #   ]
     # end
     # numbers.reverse
-    self.get_sales_numbers
+    self.new_sales_numbers
   end
 
   def update_sales
     orders = self.orders
     end_date = self.user.orders.maximum(:invoice_date)
-    sales_year = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.last_year, end_date).sum(:total)
+    sales_year = orders.within_year.sum(:total)
     prev_sales_year = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.last_year.last_year, end_date.last_year).sum(:total)
     sales_ytd = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.beginning_of_year, end_date).sum(:total)
     prev_sales_ytd = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.beginning_of_year.last_year, end_date.last_year).sum(:total)
 
-    quantity = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.last_year, end_date).sum(:quantity)
+    quantity = orders.within_year.sum(:quantity)
     prev_quantity = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.last_year.last_year, end_date.last_year).sum(:quantity)
     quantity_ytd = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.beginning_of_year, end_date).sum(:quantity)
     prev_quantity_ytd = orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.beginning_of_year.last_year, end_date.last_year).sum(:quantity)

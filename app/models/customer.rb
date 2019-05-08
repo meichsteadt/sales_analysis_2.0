@@ -64,6 +64,7 @@ class Customer < ApplicationRecord
   end
 
   def recommendations(limit = 50, test_id = nil)
+    return nil
     comps = Recommendation.comparisons(self.id, limit)
     @recommendations = {}
     @sim_sums = {}
@@ -106,11 +107,28 @@ class Customer < ApplicationRecord
   end
 
   def missing_best_sellers(category = nil)
-    unless category
-      (self.user.products.joins(:user_products).order("user_products.sales_year DESC") - self.products.joins(:customer_products).order("customer_products.sales_year DESC")).uniq.first(50)
-    else
-      (self.user.products.where(category: category).joins(:user_products).order("user_products.sales_year DESC") - self.products.where(category: category).joins(:customer_products).order("customer_products.sales_year DESC")).uniq.first(50)
-    end
+    ubs = self.user.best_sellers
+    cbs = self.best_sellers.pluck(:number)
+    ubs.select {|e| e if !cbs.include?(e.number)}
+    # unless category
+    #   (self.user.products.joins(:user_products).order("user_products.sales_year DESC") - self.products.joins(:customer_products).order("customer_products.sales_year DESC")).uniq.first(50)
+    # else
+    #   (self.user.products.where(category: category).joins(:user_products).order("user_products.sales_year DESC") - self.products.where(category: category).joins(:customer_products).order("customer_products.sales_year DESC")).uniq.first(50)
+    # end
+  end
+
+  def best_sellers(limit = 100, end_date = self.orders.maximum(:invoice_date))
+    self.orders.within_year
+    .joins(:product)
+    .group(:number)
+    .select("products.number as number, sum(total) as sales_year")
+    .sort_by {|e| e["sales_year"]}.reverse.first(limit)
+    .map {|e|
+      Product.new(
+        number: e["number"],
+        # sales_year: e["sales_year"],
+      )
+    }
   end
 
   def missing_new_items(category = nil)
@@ -178,49 +196,69 @@ class Customer < ApplicationRecord
     end
   end
 
-  def self.ordered_sales_year(user_id, order_by, reverse = false, product_id = nil)
+  def self.ordered_sales_year(user, order_by = "sales", reverse = false, product_id = nil)
     end_date = Order.maximum(:invoice_date)
-    sales_year = self.joins(:orders)
-    .where("orders.user_id = ? AND invoice_date >= ? AND invoice_date <= ?", user_id, end_date.last_year, end_date)
-    .group('customers.id')
-    .having("sum(total) > 0")
-    .select('customers.id, name, sum(total) as real_sales_year')
-    .map do |e|
-      Customer.new(
-        id: e.id,
-        name: e.name,
-        sales_year: e.real_sales_year,
-        growth: e.real_sales_year,
-      )
-    end
+    orders = user.orders.joins(:customer)
+      unless product_id
+        sales_year = orders
+        .within_year(end_date)
+        .group('customers.id, name')
+        .having("sum(total) > 0")
+        .select('customers.id, name, sum(total) as real_sales_year, sum(orders.quantity) as quantity')
 
-    Customer.where(id: sales_year.pluck(:id)).joins(:orders)
-    .where("orders.user_id = ? AND invoice_date >= ? AND invoice_date <= ?", user_id, end_date.last_year.last_year, end_date.last_year)
-    .group('customers.id')
-    .select('customers.id, name, sum(total) as real_prev_sales_year')
-    .each do |e|
-      customer = sales_year.select{ |s| e if s.id == e.id}.first
-      if customer
-        customer.prev_sales_year = e["real_prev_sales_year"]
-        customer.growth = customer.sales_year - e["real_prev_sales_year"]
+        prev_year = orders
+        .within_year(end_date - 1.year)
+        .group('customers.id')
+        .select('customers.id, name, sum(total) as real_prev_sales_year, sum(orders.quantity) as prev_quantity')
       else
-        sales_year.push(
-          Customer.new(
-            id: e.id,
-            sales_year: 0,
-            name: e["name"],
-            growth: 0-e["real_prev_sales_year"],
-            prev_sales_year: e["real_prev_sales_year"]
-          )
-        )
+        sales_year = orders
+        .where("product_id = ?", product_id)
+        .within_year(end_date)
+        .group('customers.id, name')
+        .having("sum(total) > 0")
+        .select('customers.id, name, sum(total) as real_sales_year, sum(orders.quantity) as quantity')
+
+        prev_year = orders
+        .where("product_id = ?", product_id)
+        .within_year(end_date  - 1.year)
+        .group('customers.id')
+        .select('customers.id, name, sum(total) as real_prev_sales_year, sum(orders.quantity) as prev_quantity')
       end
-    end
 
-    if product_id
-      sales_year = self.joins(:orders).where("orders.user_id = ? AND orders.product_id = ? AND invoice_date >= ? AND invoice_date <= ?", user_id, product_id, end_date.last_year, end_date).group('products.id').select('products.id, number, sum(total) as total_sum').order('total_sum desc').map {|e| [e["id"], [e["number"], e["total_sum"].to_f]]}.to_h
+      sales_year = sales_year
+                  .map do |e|
+                    Customer.new(
+                      id: e.id,
+                      name: e.name,
+                      sales_year: e.real_sales_year,
+                      growth: e.real_sales_year,
+                      quantity: e.quantity,
+                      quantity_growth: e.quantity,
+                    )
+                  end
 
-      prev_year = self.joins(:orders).where("orders.user_id = ? AND orders.product_id = ? AND invoice_date >= ? AND invoice_date <= ?", user_id, product_id, end_date.last_year.last_year, end_date.last_year).group('products.id').select('products.id, number, sum(total) as total_sum').order('total_sum desc').map {|e| [e["id"], [e["number"], e["total_sum"].to_f]]}.to_h
-    end
+      prev_year
+      .each do |e|
+        customer = sales_year.select{ |s| e if s.id == e.id}.first
+        if customer
+          customer.prev_sales_year = e["real_prev_sales_year"]
+          customer.growth = customer.sales_year - e["real_prev_sales_year"]
+          customer.prev_quantity = e["prev_quantity"]
+          customer.quantity_growth = customer.quantity - e["prev_quantity"]
+        else
+          sales_year.push(
+            Customer.new(
+              id: e.id,
+              sales_year: 0,
+              name: e["name"],
+              growth: 0-e["real_prev_sales_year"],
+              prev_sales_year: e["real_prev_sales_year"],
+              quantity_growth: 0-e["prev_quantity"],
+              prev_quantity: e["prev_quantity"],
+            )
+          )
+        end
+      end
 
     sales_arr = sales_year
     if order_by == "sales"
@@ -232,5 +270,22 @@ class Customer < ApplicationRecord
     end
     sales_arr.reverse! if reverse
     return sales_arr
+  end
+
+  def get_sales_year(quantity = false, end_date = Order.maximum(:invoice_date))
+    orders = self.orders.within_year(end_date)
+    if quantity
+      orders.sum(:quantity)
+    else
+      orders.sum(:total)
+    end
+  end
+
+  def get_growth(quantity = false, end_date = Order.maximum(:invoice_date))
+    self.get_sales_year(quantity, end_date) - self.get_sales_year(quantity, end_date.last_year)
+  end
+
+  def get_prev_year(quantity = false, end_date = Order.maximum(:invoice_date))
+    self.get_sales_year(quantity, end_date.last_year)
   end
 end

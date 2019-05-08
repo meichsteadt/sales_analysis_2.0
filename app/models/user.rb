@@ -26,13 +26,31 @@ class User < ApplicationRecord
     self.new_sales_numbers
   end
 
-  def sales_year(end_date = self.orders.maximum(:invoice_date))
-    self.orders.where("invoice_date >= ? AND invoice_date <= ?", end_date.last_year, end_date).sum(:total)
+  def sales_year(quantity = false, end_date = self.orders.maximum(:invoice_date))
+    orders = self.orders.within_year(end_date)
+    if quantity
+      orders.sum(:quantity)
+    else
+      orders.sum(:total)
+    end
   end
 
-  def growth
-    end_date = self.orders.maximum(:invoice_date)
-    self.sales_year(end_date) - self.sales_year(end_date.last_year)
+  def growth(quantity = false,end_date = self.orders.maximum(:invoice_date))
+    self.sales_year(quantity, end_date) - self.sales_year(quantity, end_date.last_year)
+  end
+
+  def best_sellers(limit = 100, end_date = self.orders.maximum(:invoice_date))
+    self.orders.within_year
+    .joins(:product)
+    .group(:number)
+    .select("products.number as number, sum(total) as sales_year")
+    .sort_by {|e| e["sales_year"]}.reverse.first(limit)
+    .map {|e|
+      Product.new(
+        number: e["number"],
+        # sales_year: e["sales_year"],
+      )
+    }
   end
 
   # def update_sales
