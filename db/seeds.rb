@@ -1,15 +1,16 @@
 require 'upload'
-User.create(email: "hal.eichsteadt@gmail.com", password: "password")
-User.create(email: "shawnzum@icloud.com", password: "password")
-User.create(email: "mark.colburn@sbcglobal.net", password: "password")
-User.create(email: "amastaton@aol.com", password: "password")
-User.create(email: "toddkamps777@gmail.com", password: "password")
+User.create(email: "hal.eichsteadt@gmail.com", password: "password", rep_ids: ["HaroldE"])
+User.create(email: "shawnzum@icloud.com", password: "password", rep_ids: ["SteveZ"])
+User.create(email: "mark.colburn@sbcglobal.net", password: "password", rep_ids: ["MarkC"])
+User.create(email: "amastaton@aol.com", password: "password", rep_ids: ["SRDAS"])
+User.create(email: "toddkamps777@gmail.com", password: "password", rep_ids: ["SRTOD"])
 
-Upload.csv([
-  {csv: 'hal_init.csv', user_id: 1},
-  {csv: 'hal_083118.csv', user_id: 1},
-  {csv: 'hal093018.csv', user_id: 1}
-])
+
+# Upload.csv([
+#   {csv: 'hal_init.csv', user_id: 1},
+#   {csv: 'hal_083118.csv', user_id: 1},
+#   {csv: 'hal093018.csv', user_id: 1}
+# ])
 # Upload.csv([
 #   {csv: 'shawn_init.csv', user_id: 2},
 #   {csv: 'shawn083118.csv', user_id: 2},

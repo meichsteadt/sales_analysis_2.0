@@ -1,11 +1,12 @@
 require 'uri'
 require 'net/http'
 class Server
-  attr_accessor :php_id, :ul, :jses_id, :user_name, :password
-  def initialize(user_id, user_name, password)
-    @user_id = user_id
-    @user_name = user_name
-    @password = password
+  attr_accessor :php_id, :ul, :jses_id, :user_name, :password, :amanda
+  def initialize(params)
+    @user_id = params[:user_id]
+    @user_name = params[:user_name]
+    @password = params[:password]
+    @amanda = params[:amanda]
     @php_id = login
     @ul = get_unique_login
     @jses_id = get_jsess
@@ -13,6 +14,7 @@ class Server
 
   def login
     url = URI("https://erp.homelegance.com/index.php")
+    url = URI("https://erptxhom.homelegance.com/index.php") if @amanda
 
     http = Net::HTTP.new(url.host, url.port)
     http.use_ssl = true
@@ -31,6 +33,7 @@ class Server
 
   def get_jsess
     url = URI("https://erp.homelegance.com/j/s/salesAnalysis?unique_login_check_id_xx=#{@ul}&php=1")
+    url = URI("https://erptxhom.homelegance.com/j/s/salesAnalysis?unique_login_check_id_xx=#{@ul}&php=1") if @amanda
 
     http = Net::HTTP.new(url.host, url.port)
     http.use_ssl = true
@@ -42,6 +45,7 @@ class Server
 
   def get_unique_login
     url = URI("https://erp.homelegance.com/index.php?_action=inventory&_operate=sales_analysis")
+    url = URI("https://erptxhom.homelegance.com/index.php?_action=inventory&_operate=sales_analysis") if @amanda
 
     http = Net::HTTP.new(url.host, url.port)
     http.use_ssl = true
@@ -66,7 +70,11 @@ class Server
   def get_sales_numbers(begin_date = Date.today.beginning_of_month, end_date = Date.today)
     begin_date = begin_date.strftime('%Y-%m-%d')
     end_date = end_date.strftime('%Y-%m-%d')
-    url = URI("https://erp.homelegance.com/j/s/salesAnalysis/salesAnalysisData?salesAnalysisFormat=salesAnalysis_detail_customer&location=all&modelId=-1&analysisBy=customer&orderBy=default&channel=&beginDate=#{begin_date}&endDate=#{end_date}&salesman=&customer=&clasz=&shipper=&admin=&isDropShip=&invoiceStatus=YES&contactType=&group_name_ids=&state=&loginUser=#{@ul}&searchLeval=detail&tJson={%22Subject_to_Commission%22:%22Y%22,%22Catalog_Type%22:%22%22,%22simple%22:%22%22,%22is_ar%22:%22true%22,%22status%22:%2214%22,%22php%22:%221%22,%22table_time%22:%221555361952135%22,%22format%22:%22salesAnalysis_detail_customer%22}&_search=false&nd=1555363148632&rows=20000&page=1&sidx=so_id&sord=asc")
+    url = URI("https://erp.homelegance.com/j/s/salesAnalysis/salesAnalysisData?salesAnalysisFormat=salesAnalysis_detail_customer&location=all&modelId=-1&analysisBy=customer&orderBy=default&channel=&beginDate=#{begin_date}&endDate=#{end_date}&salesman=&customer=&clasz=&shipper=&admin=&isDropShip=&invoiceStatus=YES&contactType=&group_name_ids=&state=&loginUser=#{@ul}&searchLeval=detail&tJson={%22Subject_to_Commission%22:%22Y%22,%22Catalog_Type%22:%22%22,%22simple%22:%22%22,%22is_ar%22:%22true%22,%22status%22:%2214%22,%22php%22:%221%22,%22table_time%22:%221555361952135%22,%22format%22:%22salesAnalysis_detail_customer%22}&_search=false&nd=1555363148632&rows=2000000&page=1&sidx=so_id&sord=asc")
+
+    url = URI("https://erptxhom.homelegance.com/j/s/salesAnalysis/salesAnalysisData?salesAnalysisFormat=salesAnalysis_detail_customer&location=all&modelId=-1&analysisBy=customer&orderBy=default&channel=&beginDate=#{begin_date}&endDate=#{end_date}&salesman=&customer=&clasz=&shipper=&admin=&isDropShip=&invoiceStatus=YES&contactType=&group_name_ids=&state=&loginUser=#{@ul}&searchLeval=detail&tJson={%22Subject_to_Commission%22:%22Y%22,%22Catalog_Type%22:%22%22,%22simple%22:%22%22,%22is_ar%22:%22true%22,%22status%22:%2214%22,%22php%22:%221%22,%22table_time%22:%221555361952135%22,%22format%22:%22salesAnalysis_detail_customer%22}&_search=false&nd=1555363148632&rows=2000000&page=1&sidx=so_id&sord=asc") if @amanda
+
+
 
     http = Net::HTTP.new(url.host, url.port)
     http.use_ssl = true

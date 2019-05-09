@@ -88,9 +88,12 @@ class Product < ApplicationRecord
     numbers.reverse
   end
 
-  def self.ordered_sales_numbers(user, order_by = "sales", reverse = false, customer_id = nil)
+  def self.ordered_sales_numbers(user, order_by = "sales", reverse = false, customer_id = nil, category = nil)
     end_date = Order.maximum(:invoice_date)
     orders = user.orders.joins(:product)
+    if category
+      orders = orders.where("products.category = ?", category)
+    end
 
     unless customer_id
       sales_year = orders
@@ -106,14 +109,14 @@ class Product < ApplicationRecord
       .select('products.id, number, sum(total) as real_prev_sales_year, sum(orders.quantity) as prev_quantity')
     else
       sales_year = orders
-      .where("product_id = ?", product_id)
+      .where("customer_id = ?", customer_id)
       .within_year(end_date)
       .group('products.id, number')
       .having("sum(total) > 5000")
       .select('products.id, number, sum(total) as real_sales_year, sum(orders.quantity) as quantity')
 
       prev_year = orders
-      .where("product_id = ?", product_id)
+      .where("customer_id = ?", customer_id)
       .within_year(end_date  - 1.year)
       .group('products.id')
       .having("sum(total) > 5000")
